@@ -156,7 +156,7 @@ export async function POST(request, { params }) {
             const token = process.env.NETLIFY_TOKEN;
             if (!token) return NextResponse.json({ error: 'NETLIFY_TOKEN not configured. Add it in Vercel Settings > Environment Variables.' }, { status: 400 });
 
-            const siteId = site.deploy_site_id;
+            const siteId = site.deploy_provider === 'netlify' ? site.deploy_site_id : null;
             let url;
 
             if (siteId) {
