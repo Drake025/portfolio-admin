@@ -1,35 +1,36 @@
 import { NextResponse } from 'next/server';
-import { Pool } from '@neondatabase/serverless';
+import { createPool } from '@vercel/postgres';
 
 export async function POST() {
-    const connStr = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-    if (!connStr) return NextResponse.json({ error: 'No database connection string found' }, { status: 500 });
+    let pool;
+    try {
+        pool = createPool();
+    } catch (e) {
+        return NextResponse.json({ error: 'Database connection failed: ' + e.message }, { status: 500 });
+    }
 
-    const pool = new Pool({ connectionString: connStr });
     const results = [];
-
     const migrations = [
-        { name: 'github_url', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS github_url TEXT` },
-        { name: 'screenshot_url', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS screenshot_url TEXT` },
-        { name: 'tech_stack', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS tech_stack TEXT DEFAULT ''` },
-        { name: 'featured', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false` },
-        { name: 'demo_url', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS demo_url TEXT` },
-        { name: 'tags', query: `ALTER TABLE sites ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT ''` },
+        `ALTER TABLE sites ADD COLUMN IF NOT EXISTS github_url TEXT`,
+        `ALTER TABLE sites ADD COLUMN IF NOT EXISTS screenshot_url TEXT`,
+        `ALTER TABLE sites ADD COLUMN IF NOT EXISTS tech_stack TEXT DEFAULT ''`,
+        `ALTER TABLE sites ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false`,
     ];
 
-    for (const m of migrations) {
+    for (const query of migrations) {
+        const colName = query.match(/ADD COLUMN IF NOT EXISTS (\w+)/)?.[1] || 'unknown';
         try {
-            await pool.query(m.query);
-            results.push({ column: m.name, status: 'added' });
+            await pool.query(query);
+            results.push({ column: colName, status: 'added' });
         } catch (e) {
-            if (e.message.includes('already exists')) {
-                results.push({ column: m.name, status: 'exists' });
+            if (e.message?.includes('already exists')) {
+                results.push({ column: colName, status: 'exists' });
             } else {
-                results.push({ column: m.name, status: 'error', error: e.message });
+                results.push({ column: colName, status: 'error', error: e.message });
             }
         }
     }
 
-    await pool.end();
+    try { await pool.end(); } catch {}
     return NextResponse.json({ results });
 }
