@@ -142,6 +142,16 @@ export async function POST(request, { params }) {
             }
         }
 
+        // Ensure index.html exists at root - if not, rename the first HTML file
+        const zipEntries = zip.getEntries();
+        const hasIndex = zipEntries.some(e => e.entryName.toLowerCase() === 'index.html');
+        if (!hasIndex) {
+            const htmlFile = zipEntries.find(e => e.entryName.toLowerCase().endsWith('.html'));
+            if (htmlFile) {
+                zip.addFile('index.html', htmlFile.getData());
+            }
+        }
+
         // Add Netlify config to fix MIME types
         zip.addFile('netlify.toml', Buffer.from('[[headers]]\n  for = "/*"\n  [headers.values]\n    Content-Type = "text/html; charset=utf-8"\n\n[[headers]]\n  for = "*.css"\n  [headers.values]\n    Content-Type = "text/css"\n\n[[headers]]\n  for = "*.js"\n  [headers.values]\n    Content-Type = "application/javascript"\n\n[[headers]]\n  for = "*.json"\n  [headers.values]\n    Content-Type = "application/json"\n\n[[headers]]\n  for = "*.png"\n  [headers.values]\n    Content-Type = "image/png"\n\n[[headers]]\n  for = "*.jpg"\n  [headers.values]\n    Content-Type = "image/jpeg"\n\n[[headers]]\n  for = "*.svg"\n  [headers.values]\n    Content-Type = "image/svg+xml"\n'));
         const zipBuf = zip.toBuffer();
