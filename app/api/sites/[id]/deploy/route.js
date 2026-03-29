@@ -4,7 +4,6 @@ import { requireAuth } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
 import { listFiles, uploadFile } from '@/lib/storage';
 import { getContentType } from '@/lib/utils';
-import fetch from 'node-fetch';
 import AdmZip from 'adm-zip';
 
 export const maxDuration = 300;

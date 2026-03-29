@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
-import fetch from 'node-fetch';
 
 export async function POST(request) {
     const { error } = requireAuth(request);
