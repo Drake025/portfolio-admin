@@ -96,11 +96,14 @@ export default function AdminPage() {
             <aside className="sb">
                 <div className="sb-hd"><h2>Portfolio Admin</h2><span>Dashboard</span></div>
                 <nav className="sb-nv">
+                    <a href="/" className="ni" style={{ textDecoration: 'none' }}>
+                        {"\u2190"} Back to Portfolio
+                    </a>
                     <button className={`ni ${page === 'dashboard' ? 'on' : ''}`} onClick={() => { setPage('dashboard'); setSiteId(null); }}>
-                        &#9638; Dashboard
+                        {"\u25C8"} Dashboard
                     </button>
                     <button className={`ni ${page === 'logs-all' ? 'on' : ''}`} onClick={() => setPage('logs-all')}>
-                        &#128196; All Logs
+                        {"\uD83D\uDCC4"} All Logs
                     </button>
                 </nav>
                 <div className="sb-ft">
