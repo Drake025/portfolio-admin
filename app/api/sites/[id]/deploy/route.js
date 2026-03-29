@@ -141,6 +141,9 @@ export async function POST(request, { params }) {
                 await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${filePath}`);
             }
         }
+
+        // Add Netlify headers file to fix MIME types
+        zip.addFile('_headers', Buffer.from('/*\n  Content-Type: text/html\n\n/*.css\n  Content-Type: text/css\n\n/*.js\n  Content-Type: application/javascript\n\n/*.json\n  Content-Type: application/json\n\n/*.png\n  Content-Type: image/png\n\n/*.jpg\n  Content-Type: image/jpeg\n\n/*.svg\n  Content-Type: image/svg+xml\n'));
         const zipBuf = zip.toBuffer();
 
         if (zipBuf.length < 10) {
