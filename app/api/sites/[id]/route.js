@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request, { params }) {
     const { error } = requireAuth(request);
@@ -38,8 +38,8 @@ export async function DELETE(request, { params }) {
         const s = await sql`SELECT * FROM sites WHERE id=${id}`;
         if (!s.rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
         const site = s.rows[0];
-        const { deletePrefix } = await import('@/lib/storage.mjs');
-        const { addLog } = await import('@/lib/logs.mjs');
+        const { deletePrefix } = await import('@/lib/storage');
+        const { addLog } = await import('@/lib/logs');
         try { await deletePrefix(`sites/${site.slug}/`); } catch {}
         await sql`DELETE FROM sites WHERE id=${id}`;
         await addLog(parseInt(id), null, 'delete', 'info', `Site "${site.name}" deleted`);

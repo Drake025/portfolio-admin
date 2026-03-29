@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
-import { addLog } from '@/lib/logs.mjs';
-import { listFiles } from '@/lib/storage.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { addLog } from '@/lib/logs';
+import { listFiles } from '@/lib/storage';
 import fetch from 'node-fetch';
 import AdmZip from 'adm-zip';
 

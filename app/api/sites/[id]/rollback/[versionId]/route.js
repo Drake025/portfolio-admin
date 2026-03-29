@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
-import { addLog } from '@/lib/logs.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { addLog } from '@/lib/logs';
 
 // POST /api/sites/[id]/rollback/[versionId]
 export async function POST(request, { params }) {

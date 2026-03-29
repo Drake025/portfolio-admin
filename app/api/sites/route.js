@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 
 // List all sites (admin) or all live sites (public)
 export async function GET(request) {
@@ -27,8 +27,8 @@ export async function POST(request) {
     try {
         const { name, description, gitUrl } = await request.json();
         if (!name || !gitUrl) return NextResponse.json({ error: 'Name and Git URL required' }, { status: 400 });
-        const { slugify } = await import('@/lib/utils.mjs');
-        const { addLog } = await import('@/lib/logs.mjs');
+        const { slugify } = await import('@/lib/utils');
+        const { addLog } = await import('@/lib/logs');
         const slug = slugify(name) + '-' + Date.now();
         const prefix = `sites/${slug}/v1`;
         await sql`INSERT INTO sites (name,slug,description,source_type,git_url,storage_prefix) VALUES (${name},${slug},${description||''},'git',${gitUrl},${prefix})`;

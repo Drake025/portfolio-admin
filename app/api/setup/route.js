@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { sql, initializeDatabase } from '@/lib/db.mjs';
+import { sql, initializeDatabase } from '@/lib/db';
 
 export async function GET() {
     try {

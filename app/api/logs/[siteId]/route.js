@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
-import { subscribe } from '@/lib/logs.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { subscribe } from '@/lib/logs';
 
 export const maxDuration = 300;
 

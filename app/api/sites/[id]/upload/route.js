@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
-import { uploadFile } from '@/lib/storage.mjs';
-import { addLog } from '@/lib/logs.mjs';
-import { getContentType } from '@/lib/utils.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { uploadFile } from '@/lib/storage';
+import { addLog } from '@/lib/logs';
+import { getContentType } from '@/lib/utils';
 import AdmZip from 'adm-zip';
 
 export const maxDuration = 120;

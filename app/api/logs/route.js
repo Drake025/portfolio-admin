@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db.mjs';
-import { requireAuth } from '@/lib/auth.mjs';
+import { sql } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 
 // GET /api/logs — recent logs across all sites
 export async function GET(request) {
