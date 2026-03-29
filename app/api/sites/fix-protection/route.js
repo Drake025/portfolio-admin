@@ -19,7 +19,7 @@ export async function POST(request) {
                 const resp = await fetch(`https://api.vercel.com/v9/projects/${site.deploy_site_id}`, {
                     method: 'PATCH',
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ deploymentProtection: { level: 'none' } }),
+                    body: JSON.stringify({ ssoProtection: null }),
                 });
                 results.push({
                     site: site.name,

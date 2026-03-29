@@ -182,10 +182,7 @@ export async function POST(request, { params }) {
             const body = {
                 name: site.slug,
                 files: files.filter(Boolean),
-                projectSettings: {
-                    framework: null,
-                    deploymentProtection: { level: 'none' },
-                },
+                projectSettings: { framework: null },
             };
             if (site.deploy_site_id) body.project = site.deploy_site_id;
 
@@ -204,7 +201,7 @@ export async function POST(request, { params }) {
                     await fetch(`https://api.vercel.com/v9/projects/${dd.projectId}`, {
                         method: 'PATCH',
                         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ deploymentProtection: { level: 'none' } }),
+                        body: JSON.stringify({ ssoProtection: null }),
                     });
                 } catch {}
             }
