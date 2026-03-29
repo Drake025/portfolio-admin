@@ -670,6 +670,55 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
     opacity: 1;
 }
 
+/* About Me */
+.pub-about-card {
+    display: flex;
+    gap: 28px;
+    padding: 32px;
+    background: var(--pub-card);
+    border: 1px solid var(--pub-border);
+    border-radius: 16px;
+    box-shadow: var(--pub-shadow);
+}
+.pub-about-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: var(--pub-accent-soft);
+    color: var(--pub-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.pub-about-content {
+    flex: 1;
+}
+.pub-about-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.pub-about-role {
+    font-size: .875rem;
+    color: var(--pub-accent);
+    font-weight: 500;
+    margin-bottom: 12px;
+}
+.pub-about-bio {
+    font-size: .9375rem;
+    color: var(--pub-text2);
+    line-height: 1.7;
+    margin-bottom: 20px;
+}
+.pub-about-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .pub-hero {
@@ -697,5 +746,13 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
     .pub-footer-inner {
         flex-direction: column;
         text-align: center;
+    }
+    .pub-about-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .pub-about-links {
+        justify-content: center;
     }
 }

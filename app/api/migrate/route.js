@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { Pool } from '@neondatabase/serverless';
 
 export async function POST() {
+    const connStr = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    if (!connStr) return NextResponse.json({ error: 'No database connection string found' }, { status: 500 });
+
+    const pool = new Pool({ connectionString: connStr });
     const results = [];
 
     const migrations = [
@@ -15,12 +19,17 @@ export async function POST() {
 
     for (const m of migrations) {
         try {
-            await sql.query(m.query);
-            results.push({ column: m.name, status: 'ok' });
+            await pool.query(m.query);
+            results.push({ column: m.name, status: 'added' });
         } catch (e) {
-            results.push({ column: m.name, status: 'error', error: e.message });
+            if (e.message.includes('already exists')) {
+                results.push({ column: m.name, status: 'exists' });
+            } else {
+                results.push({ column: m.name, status: 'error', error: e.message });
+            }
         }
     }
 
+    await pool.end();
     return NextResponse.json({ results });
 }

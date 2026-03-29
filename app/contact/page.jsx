@@ -24,14 +24,15 @@ export default function ContactPage() {
             <nav className="pub-nav">
                 <div className="pub-nav-inner">
                     <a href="/" className="pub-logo">
-                        <span className="pub-logo-icon">&#9672;</span>
+                        <span className="pub-logo-icon">{"\u2727"}</span>
                         <span>Prince Jeremie</span>
                     </a>
                     <div className="pub-nav-links">
                         <a href="/" className="pub-nav-link">Projects</a>
+                        <a href="/#about" className="pub-nav-link">About</a>
                         <a href="/contact" className="pub-nav-link active">Contact</a>
                         <button onClick={toggleTheme} className="pub-theme-btn" aria-label="Toggle theme">
-                            {theme === 'dark' ? '&#9728;' : '&#9790;'}
+                            {theme === 'dark' ? '\u2600' : '\u263E'}
                         </button>
                     </div>
                 </div>
@@ -49,7 +50,7 @@ export default function ContactPage() {
 
                     <div className="pub-contact-grid">
                         <a href="mailto:malanaprincejeremie@gmail.com" className="pub-contact-card">
-                            <div className="pub-contact-icon">&#9993;</div>
+                            <div className="pub-contact-icon">{"\u2709"}</div>
                             <div className="pub-contact-info">
                                 <h3>Email</h3>
                                 <p>malanaprincejeremie@gmail.com</p>
@@ -58,7 +59,7 @@ export default function ContactPage() {
                         </a>
 
                         <a href="https://www.linkedin.com/in/prince-jeremie-malana-73293b2bb" target="_blank" rel="noopener noreferrer" className="pub-contact-card">
-                            <div className="pub-contact-icon" style={{ color: '#0a66c2' }}>&#9679;</div>
+                            <div className="pub-contact-icon" style={{ color: '#0a66c2' }}>{"\u25CF"}</div>
                             <div className="pub-contact-info">
                                 <h3>LinkedIn</h3>
                                 <p>Prince Jeremie Malana</p>
@@ -67,7 +68,7 @@ export default function ContactPage() {
                         </a>
 
                         <a href="https://github.com/Drake025" target="_blank" rel="noopener noreferrer" className="pub-contact-card">
-                            <div className="pub-contact-icon">&#9679;</div>
+                            <div className="pub-contact-icon">{"\u25CF"}</div>
                             <div className="pub-contact-info">
                                 <h3>GitHub</h3>
                                 <p>Drake025</p>
@@ -85,6 +86,7 @@ export default function ContactPage() {
                     </div>
                     <div className="pub-footer-links">
                         <a href="/">Projects</a>
+                        <a href="/#about">About</a>
                         <a href="/login" className="pub-footer-admin">Admin</a>
                     </div>
                 </div>

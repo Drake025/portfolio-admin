@@ -49,14 +49,15 @@ export default function HomePage() {
             <nav className="pub-nav">
                 <div className="pub-nav-inner">
                     <a href="/" className="pub-logo">
-                        <span className="pub-logo-icon">&#9672;</span>
+                        <span className="pub-logo-icon">{"\u2727"}</span>
                         <span>Prince Jeremie</span>
                     </a>
                     <div className="pub-nav-links">
                         <a href="/" className="pub-nav-link active">Projects</a>
+                        <a href="/#about" className="pub-nav-link">About</a>
                         <a href="/contact" className="pub-nav-link">Contact</a>
                         <button onClick={toggleTheme} className="pub-theme-btn" aria-label="Toggle theme">
-                            {theme === 'dark' ? '&#9728;' : '&#9790;'}
+                            {theme === 'dark' ? '\u2600' : '\u263E'}
                         </button>
                     </div>
                 </div>
@@ -65,7 +66,7 @@ export default function HomePage() {
             {/* Hero */}
             <header className="pub-hero">
                 <div className="pub-hero-inner">
-                    <div className="pub-hero-badge">&#128075; Welcome to my portfolio</div>
+                    <div className="pub-hero-badge">{"\uD83D\uDC4B"} Welcome to my portfolio</div>
                     <h1 className="pub-hero-title">
                         Building <span className="pub-accent">digital experiences</span> that matter
                     </h1>
@@ -96,7 +97,7 @@ export default function HomePage() {
                     <section className="pub-section">
                         <div className="pub-section-header">
                             <h2 className="pub-section-title">
-                                <span className="pub-section-icon">&#11088;</span> Featured Projects
+                                <span className="pub-section-icon">{"\u2B50"}</span> Featured Projects
                             </h2>
                         </div>
                         <div className="pub-featured-grid">
@@ -123,7 +124,7 @@ export default function HomePage() {
 
                     {filteredSites.length === 0 && featured.length === 0 ? (
                         <div className="pub-empty">
-                            <div className="pub-empty-icon">&#128187;</div>
+                            <div className="pub-empty-icon">{"\uD83D\uDCBB"}</div>
                             <h3>Projects coming soon</h3>
                             <p>New projects will appear here once they are published.</p>
                             <a href="/login" className="pub-btn pub-btn-primary">Admin Login</a>
@@ -135,6 +136,36 @@ export default function HomePage() {
                             ))}
                         </div>
                     )}
+                </section>
+
+                {/* About Me */}
+                <section id="about" className="pub-section">
+                    <div className="pub-about">
+                        <h2 className="pub-section-title" style={{ marginBottom: 20 }}>About Me</h2>
+                        <div className="pub-about-card">
+                            <div className="pub-about-avatar">P</div>
+                            <div className="pub-about-content">
+                                <h3 className="pub-about-name">Prince Jeremie Malana</h3>
+                                <p className="pub-about-role">Full-Stack Developer</p>
+                                <p className="pub-about-bio">
+                                    I build web applications that solve real problems. Passionate about clean architecture,
+                                    modern frameworks, and creating seamless user experiences. From front-end interfaces
+                                    to back-end systems, I enjoy the entire development lifecycle.
+                                </p>
+                                <div className="pub-about-links">
+                                    <a href="mailto:malanaprincejeremie@gmail.com" className="pub-btn pub-btn-primary pub-btn-sm">
+                                        {"\u2709"} Email Me
+                                    </a>
+                                    <a href="https://www.linkedin.com/in/prince-jeremie-malana-73293b2bb" target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-ghost pub-btn-sm">
+                                        LinkedIn
+                                    </a>
+                                    <a href="https://github.com/Drake025" target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-ghost pub-btn-sm">
+                                        GitHub
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </main>
 
@@ -166,7 +197,7 @@ function FeaturedCard({ site }) {
             )}
             <div className="pub-featured-content">
                 <div className="pub-featured-top">
-                    <span className="pub-badge pub-badge-featured">&#11088; Featured</span>
+                    <span className="pub-badge pub-badge-featured">{"\u2B50"} Featured</span>
                     <StatusBadge status={site.status} />
                 </div>
                 <h3 className="pub-card-title">{site.name}</h3>
@@ -179,7 +210,7 @@ function FeaturedCard({ site }) {
                 <div className="pub-card-actions">
                     {site.live_url && (
                         <a href={site.live_url} target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-primary pub-btn-sm" onClick={e => e.stopPropagation()}>
-                            &#128279; View Live
+                            {"\uD83D\uDD17"} View Live
                         </a>
                     )}
                     {site.github_url && (
