@@ -201,7 +201,9 @@ function FeaturedCard({ site }) {
                     <StatusBadge status={site.status} />
                 </div>
                 <h3 className="pub-card-title">{site.name}</h3>
-                <p className="pub-card-desc">{site.description || 'No description provided.'}</p>
+                <div className="pub-card-scroll">
+                    <p className="pub-card-desc">{site.description || 'No description provided.'}</p>
+                </div>
                 {stack.length > 0 && (
                     <div className="pub-tech-tags">
                         {stack.map(t => <span key={t} className="pub-tech-tag">{t}</span>)}
@@ -243,7 +245,9 @@ function ProjectCard({ site }) {
                     <span className="pub-card-version">v{site.current_version}</span>
                 </div>
                 <h3 className="pub-card-title">{site.name}</h3>
-                <p className="pub-card-desc">{site.description || 'No description provided.'}</p>
+                <div className="pub-card-scroll">
+                    <p className="pub-card-desc">{site.description || 'No description provided.'}</p>
+                </div>
                 {stack.length > 0 && (
                     <div className="pub-tech-tags">
                         {stack.slice(0, 4).map(t => <span key={t} className="pub-tech-tag">{t}</span>)}

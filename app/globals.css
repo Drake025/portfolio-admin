@@ -438,14 +438,20 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
     margin-bottom: 6px;
     color: var(--pub-text);
 }
+.pub-card-scroll {
+    max-height: 150px;
+    overflow-y: auto;
+    padding-right: 8px;
+    margin-bottom: 14px;
+}
+.pub-card-scroll::-webkit-scrollbar { width: 4px; }
+.pub-card-scroll::-webkit-scrollbar-track { background: transparent; }
+.pub-card-scroll::-webkit-scrollbar-thumb { background: var(--pub-border); border-radius: 2px; }
 .pub-card-desc {
     font-size: .875rem;
     color: var(--pub-text2);
-    margin-bottom: 14px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.7;
+    word-break: break-word;
 }
 .pub-card-actions {
     display: flex;
