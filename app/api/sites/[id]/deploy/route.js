@@ -156,20 +156,32 @@ export async function POST(request, { params }) {
             const token = process.env.NETLIFY_TOKEN;
             if (!token) return NextResponse.json({ error: 'NETLIFY_TOKEN not configured. Add it in Vercel Settings > Environment Variables.' }, { status: 400 });
 
-            const siteId = site.deploy_provider === 'netlify' ? site.deploy_site_id : null;
+            const siteId = site.deploy_site_id;
             let url;
 
             if (siteId) {
                 url = `https://api.netlify.com/api/v1/sites/${siteId}/deploys`;
             } else {
-                await addLog(parseInt(id), ver.id, 'deploy', 'info', 'Creating new Netlify site...');
-                const cr = await fetch('https://api.netlify.com/api/v1/sites', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: site.slug }),
+                await addLog(parseInt(id), ver.id, 'deploy', 'info', 'Looking for existing Netlify site...');
+                // Try to find existing site by slug
+                const lr = await fetch('https://api.netlify.com/api/v1/sites?name=' + encodeURIComponent(site.slug), {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
-                if (!cr.ok) { const t = await cr.text(); throw new Error(`Netlify site create failed (${cr.status}): ${t}`); }
-                const ns = await cr.json();
+                let ns;
+                if (lr.ok) {
+                    const list = await lr.json();
+                    ns = list.find(s => s.name === site.slug);
+                }
+                if (!ns) {
+                    await addLog(parseInt(id), ver.id, 'deploy', 'info', 'Creating new Netlify site...');
+                    const cr = await fetch('https://api.netlify.com/api/v1/sites', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: site.slug }),
+                    });
+                    if (!cr.ok) { const t = await cr.text(); throw new Error(`Netlify site create failed (${cr.status}): ${t}`); }
+                    ns = await cr.json();
+                }
                 await sql`UPDATE sites SET deploy_site_id=${ns.id} WHERE id=${id}`;
                 url = `https://api.netlify.com/api/v1/sites/${ns.id}/deploys`;
             }
