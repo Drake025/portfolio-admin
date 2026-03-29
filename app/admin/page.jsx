@@ -249,24 +249,86 @@ function SiteDetail({ data, tab, setTab, onBack, onRefresh, toast, logRef, onMod
             </div>
 
             <div className="tabs">
-                {['overview', 'versions', 'deploy', 'logs'].map(t => (
+                {['overview', 'versions', 'deploy', 'logs', 'preview'].map(t => (
                     <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
                         {t.charAt(0).toUpperCase() + t.slice(1)}{t === 'versions' ? ` (${versions.length})` : ''}
                     </button>
                 ))}
             </div>
 
-            {tab === 'overview' && <OverviewTab site={site} versions={versions} deploys={deploys} onDeploy={doDeploy} />}
+            {tab === 'overview' && <OverviewTab site={site} versions={versions} deploys={deploys} onDeploy={doDeploy} onRefresh={onRefresh} toast={toast} />}
             {tab === 'versions' && <VersionsTab versions={versions} onRollback={doRollback} />}
             {tab === 'deploy' && <DeployTab site={site} onDeploy={doDeploy} deploys={deploys} />}
             {tab === 'logs' && <LogsTab logs={logs} siteId={site.id} logRef={logRef} toast={toast} />}
+            {tab === 'preview' && <PreviewTab site={site} />}
         </>
     );
 }
 
 // ── Overview Tab ────────────────────────────────────────────
-function OverviewTab({ site, versions, deploys, onDeploy }) {
+function OverviewTab({ site, versions, deploys, onDeploy, onRefresh, toast }) {
     const last = deploys[0];
+    const [editField, setEditField] = useState(null);
+    const [editValue, setEditValue] = useState('');
+    const [busy, setBusy] = useState(false);
+    const screenshotRef = useRef(null);
+
+    const startEdit = (field, value) => { setEditField(field); setEditValue(value || ''); };
+    const cancelEdit = () => { setEditField(null); setEditValue(''); };
+
+    const saveEdit = async () => {
+        setBusy(true);
+        try {
+            await api(`/api/sites/${site.id}`, { method: 'PATCH', body: { [editField]: editValue } });
+            toast('Updated', 'ok');
+            setEditField(null);
+            onRefresh();
+        } catch (e) { toast(e.message, 'err'); }
+        setBusy(false);
+    };
+
+    const toggleFeatured = async () => {
+        try {
+            await api(`/api/sites/${site.id}`, { method: 'PATCH', body: { featured: !site.featured } });
+            toast(site.featured ? 'Removed from featured' : 'Added to featured', 'ok');
+            onRefresh();
+        } catch (e) { toast(e.message, 'err'); }
+    };
+
+    const uploadScreenshot = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setBusy(true);
+        try {
+            const fd = new FormData();
+            fd.append('screenshot', file);
+            const r = await api(`/api/sites/${site.id}/screenshot`, { method: 'POST', body: fd });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            toast('Screenshot uploaded!', 'ok');
+            onRefresh();
+        } catch (e2) { toast(e2.message, 'err'); }
+        setBusy(false);
+    };
+
+    const renderEditable = (field, label, value) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--bdr)' }}>
+            <div>
+                <div style={{ fontSize: '.75rem', color: 'var(--fg3)', marginBottom: 2 }}>{label}</div>
+                {editField === field ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <input value={editValue} onChange={e => setEditValue(e.target.value)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg3)', border: '1px solid var(--acc)', borderRadius: 'var(--r)', color: 'var(--fg)', fontSize: '.8125rem' }} />
+                        <button className="btn btn-p btn-sm" onClick={saveEdit} disabled={busy}>Save</button>
+                        <button className="btn btn-s btn-sm" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                ) : (
+                    <div style={{ fontSize: '.875rem' }}>{value || <span style={{ color: 'var(--fg3)' }}>Not set</span>}</div>
+                )}
+            </div>
+            {editField !== field && <button className="btn btn-s btn-sm" onClick={() => startEdit(field, value)}>Edit</button>}
+        </div>
+    );
+
     return (
         <>
             <div className="stg">
@@ -275,12 +337,50 @@ function OverviewTab({ site, versions, deploys, onDeploy }) {
                 <div className="st"><div className="lb">Provider</div><div className="vl">{site.deploy_provider || 'None'}</div></div>
                 <div className="st"><div className="lb">Last Deploy</div><div className="vl">{last ? ago(last.started_at) : 'Never'}</div></div>
             </div>
+
+            {/* Site Details */}
+            <div className="cd" style={{ marginBottom: 16 }}>
+                <div className="cd-hd">
+                    <h3>Site Details</h3>
+                    <button className={`btn btn-sm ${site.featured ? 'btn-p' : 'btn-s'}`} onClick={toggleFeatured}>
+                        {site.featured ? '&#11088; Featured' : '+ Feature'}
+                    </button>
+                </div>
+                <div className="cd-bd">
+                    {renderEditable('description', 'Description', site.description)}
+                    {renderEditable('tech_stack', 'Tech Stack', site.tech_stack)}
+                    {renderEditable('github_url', 'GitHub URL', site.github_url)}
+                    {renderEditable('live_url', 'Live URL', site.live_url)}
+                </div>
+            </div>
+
+            {/* Screenshot */}
+            <div className="cd" style={{ marginBottom: 16 }}>
+                <div className="cd-hd"><h3>Screenshot</h3></div>
+                <div className="cd-bd">
+                    {site.screenshot_url ? (
+                        <div style={{ marginBottom: 12 }}>
+                            <img src={site.screenshot_url} alt="Screenshot" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 'var(--r)', border: '1px solid var(--bdr)' }} />
+                        </div>
+                    ) : (
+                        <p style={{ color: 'var(--fg3)', marginBottom: 12, fontSize: '.875rem' }}>No screenshot uploaded</p>
+                    )}
+                    <input ref={screenshotRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadScreenshot} />
+                    <button className="btn btn-s btn-sm" onClick={() => screenshotRef.current?.click()} disabled={busy}>
+                        {site.screenshot_url ? 'Replace Screenshot' : 'Upload Screenshot'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Live URL */}
             {site.live_url && (
                 <div className="cd" style={{ marginBottom: 16 }}>
                     <div className="cd-hd"><h3>Live URL</h3></div>
                     <div className="cd-bd"><a href={site.live_url} target="_blank" rel="noopener">{site.live_url}</a></div>
                 </div>
             )}
+
+            {/* Quick Deploy */}
             <div className="cd">
                 <div className="cd-hd"><h3>Quick Deploy</h3></div>
                 <div className="cd-bd">
@@ -390,6 +490,26 @@ function LogsTab({ logs, siteId, logRef, toast }) {
     );
 }
 
+// ── Preview Tab ──────────────────────────────────────────────
+function PreviewTab({ site }) {
+    if (!site.live_url) return <div className="empty"><h3>No preview available</h3><p>Deploy the site first to see a preview.</p></div>;
+    return (
+        <div className="cd">
+            <div className="cd-hd">
+                <h3>Preview</h3>
+                <a href={site.live_url} target="_blank" rel="noopener" className="btn btn-s btn-sm">Open in New Tab &#8599;</a>
+            </div>
+            <div className="cd-bd" style={{ padding: 0 }}>
+                <iframe
+                    src={site.live_url}
+                    style={{ width: '100%', height: '600px', border: 'none', borderRadius: '0 0 var(--rl) var(--rl)' }}
+                    title={`Preview: ${site.name}`}
+                />
+            </div>
+        </div>
+    );
+}
+
 // ── All Logs Page ───────────────────────────────────────────
 function AllLogs({ toast }) {
     const [logs, setLogs] = useState([]);
@@ -423,6 +543,8 @@ function UploadModal({ toast, onDone }) {
     const [file, setFile] = useState(null);
     const [files, setFiles] = useState([]);
     const [gitUrl, setGitUrl] = useState('');
+    const [githubUrl, setGithubUrl] = useState('');
+    const [techStack, setTechStack] = useState('');
     const [busy, setBusy] = useState(false);
     const zipRef = useRef(null);
     const filesRef = useRef(null);
@@ -439,6 +561,10 @@ function UploadModal({ toast, onDone }) {
                 const r = await api('/api/sites/upload', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
+                // Update extra fields
+                if (githubUrl || techStack) {
+                    await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
+                }
                 toast('Site created!', 'ok');
             } else if (mode === 'files') {
                 if (!files.length) return toast('Select files or a folder', 'err'), setBusy(false);
@@ -448,12 +574,18 @@ function UploadModal({ toast, onDone }) {
                 const r = await api('/api/sites/upload', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
+                if (githubUrl || techStack) {
+                    await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
+                }
                 toast(`Site created with ${files.length} files!`, 'ok');
             } else {
                 if (!gitUrl) return toast('Git URL required', 'err'), setBusy(false);
                 const r = await api('/api/sites', { method: 'POST', body: { name, description: desc, gitUrl } });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
+                if (githubUrl || techStack) {
+                    await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
+                }
                 toast('Site created!', 'ok');
             }
             onDone();
@@ -471,6 +603,8 @@ function UploadModal({ toast, onDone }) {
                 </div>
                 <div className="fg"><label>Site Name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="My Project" /></div>
                 <div className="fg"><label>Description</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional description" /></div>
+                <div className="fg"><label>Tech Stack (comma separated)</label><input value={techStack} onChange={e => setTechStack(e.target.value)} placeholder="React, Node.js, PostgreSQL" /></div>
+                <div className="fg"><label>GitHub URL (optional)</label><input value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/user/repo" /></div>
                 {mode === 'zip' ? (
                     <>
                         <div className="ua" onClick={() => zipRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}>

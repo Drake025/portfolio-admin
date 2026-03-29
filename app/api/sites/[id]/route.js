@@ -26,6 +26,12 @@ export async function PATCH(request, { params }) {
         if (b.description !== undefined) await sql`UPDATE sites SET description=${b.description},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
         if (b.deploy_provider) await sql`UPDATE sites SET deploy_provider=${b.deploy_provider},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
         if (b.deploy_site_id) await sql`UPDATE sites SET deploy_site_id=${b.deploy_site_id},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.github_url !== undefined) await sql`UPDATE sites SET github_url=${b.github_url},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.screenshot_url !== undefined) await sql`UPDATE sites SET screenshot_url=${b.screenshot_url},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.tech_stack !== undefined) await sql`UPDATE sites SET tech_stack=${b.tech_stack},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.featured !== undefined) await sql`UPDATE sites SET featured=${b.featured},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.live_url !== undefined) await sql`UPDATE sites SET live_url=${b.live_url},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
+        if (b.status) await sql`UPDATE sites SET status=${b.status},updated_at=CURRENT_TIMESTAMP WHERE id=${id}`;
         return NextResponse.json({ message: 'Updated' });
     } catch { return NextResponse.json({ error: 'Update failed' }, { status: 500 }); }
 }
