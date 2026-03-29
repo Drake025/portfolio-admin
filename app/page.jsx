@@ -215,11 +215,6 @@ function FeaturedCard({ site }) {
                             {"\uD83D\uDD17"} View Live
                         </a>
                     )}
-                    {site.github_url && (
-                        <a href={site.github_url} target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-ghost pub-btn-sm" onClick={e => e.stopPropagation()}>
-                            Source Code
-                        </a>
-                    )}
                 </div>
             </div>
         </div>
@@ -258,11 +253,6 @@ function ProjectCard({ site }) {
                     {site.live_url && (
                         <a href={site.live_url} target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-primary pub-btn-sm" onClick={e => e.stopPropagation()}>
                             View Live
-                        </a>
-                    )}
-                    {site.github_url && (
-                        <a href={site.github_url} target="_blank" rel="noopener noreferrer" className="pub-btn pub-btn-ghost pub-btn-sm" onClick={e => e.stopPropagation()}>
-                            Code
                         </a>
                     )}
                 </div>

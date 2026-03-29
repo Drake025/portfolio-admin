@@ -112,16 +112,33 @@ export async function POST(request, { params }) {
 
         // Build ZIP from cloud storage
         const zip = new AdmZip();
-        for (const f of blobs) {
+        const relPaths = blobs.map(f => {
             const rel = f.key.replace(ver.storage_prefix + '/', '');
-            if (!rel || rel.endsWith('/')) continue;
+            return { rel, url: f.url };
+        }).filter(f => f.rel && !f.rel.endsWith('/'));
+
+        // Detect if all files share a root folder and strip it
+        let rootPrefix = '';
+        if (relPaths.length > 0) {
+            const firstParts = relPaths[0].rel.split('/');
+            if (firstParts.length > 1) {
+                const candidate = firstParts[0] + '/';
+                if (relPaths.every(f => f.rel.startsWith(candidate))) {
+                    rootPrefix = candidate;
+                }
+            }
+        }
+
+        for (const f of relPaths) {
+            const filePath = rootPrefix ? f.rel.replace(rootPrefix, '') : f.rel;
+            if (!filePath) continue;
             try {
                 const resp = await fetch(f.url);
                 if (resp.ok) {
-                    zip.addFile(rel, Buffer.from(await resp.arrayBuffer()));
+                    zip.addFile(filePath, Buffer.from(await resp.arrayBuffer()));
                 }
             } catch (e) {
-                await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${rel}`);
+                await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${filePath}`);
             }
         }
         const zipBuf = zip.toBuffer();
