@@ -137,11 +137,26 @@ export default function AdminPage() {
 // ── Dashboard ───────────────────────────────────────────────
 function Dashboard({ sites, onRefresh, onOpen, onModal, toast }) {
     const live = sites.filter(s => s.status === 'live').length;
+
+    const fixProtection = async () => {
+        try {
+            const r = await api('/api/sites/fix-protection', { method: 'POST' });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            const fixed = d.results.filter(r => r.status === 'fixed').length;
+            const failed = d.results.filter(r => r.status === 'failed').length;
+            toast(`Protection fixed: ${fixed} site(s)${failed ? `, ${failed} failed` : ''}`, failed ? 'err' : 'ok');
+        } catch (e) { toast(e.message, 'err'); }
+    };
+
     return (
         <>
             <div className="ph">
                 <div><h1>Dashboard</h1><div className="sub">Manage your portfolio sites</div></div>
-                <button className="btn btn-p" onClick={() => onModal(<UploadModal toast={toast} onDone={() => { onRefresh(); onModal(null); }} />)}>+ New Site</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-s" onClick={fixProtection} title="Make deployed sites publicly accessible">&#128275; Fix Public Access</button>
+                    <button className="btn btn-p" onClick={() => onModal(<UploadModal toast={toast} onDone={() => { onRefresh(); onModal(null); }} />)}>+ New Site</button>
+                </div>
             </div>
             <div className="stg">
                 <div className="st"><div className="lb">Total Sites</div><div className="vl">{sites.length}</div></div>

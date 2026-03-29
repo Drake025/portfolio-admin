@@ -179,7 +179,14 @@ export async function POST(request, { params }) {
                 } catch { return null; }
             }).filter(Boolean));
 
-            const body = { name: site.slug, files: files.filter(Boolean), projectSettings: { framework: null } };
+            const body = {
+                name: site.slug,
+                files: files.filter(Boolean),
+                projectSettings: {
+                    framework: null,
+                    deploymentProtection: { level: 'none' },
+                },
+            };
             if (site.deploy_site_id) body.project = site.deploy_site_id;
 
             const dr = await fetch('https://api.vercel.com/v13/deployments', {
@@ -191,7 +198,16 @@ export async function POST(request, { params }) {
             const dd = await dr.json();
             deployUrl = `https://${dd.url}`;
             deployId = dd.id;
-            if (dd.projectId) await sql`UPDATE sites SET deploy_site_id=${dd.projectId} WHERE id=${id}`;
+            if (dd.projectId) {
+                await sql`UPDATE sites SET deploy_site_id=${dd.projectId} WHERE id=${id}`;
+                try {
+                    await fetch(`https://api.vercel.com/v9/projects/${dd.projectId}`, {
+                        method: 'PATCH',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deploymentProtection: { level: 'none' } }),
+                    });
+                } catch {}
+            }
 
         } else {
             return NextResponse.json({ error: 'Invalid provider. Use "netlify" or "vercel"' }, { status: 400 });
