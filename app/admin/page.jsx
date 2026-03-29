@@ -1,0 +1,520 @@
+'use client';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+// ── API helper ──────────────────────────────────────────────
+function api(path, opts = {}) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    const headers = { ...opts.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    return fetch(path, { ...opts, headers, body: opts.body instanceof FormData ? opts.body : opts.body ? JSON.stringify(opts.body) : undefined });
+}
+
+// ── Main component ──────────────────────────────────────────
+export default function AdminPage() {
+    const router = useRouter();
+    const [page, setPage] = useState('dashboard');
+    const [sites, setSites] = useState([]);
+    const [siteId, setSiteId] = useState(null);
+    const [siteData, setSiteData] = useState(null);
+    const [tab, setTab] = useState('overview');
+    const [toast, setToast] = useState(null);
+    const [modal, setModal] = useState(null);
+    const [user, setUser] = useState(null);
+    const logRef = useRef(null);
+
+    const toastMsg = useCallback((msg, type = 'inf') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 4000);
+    }, []);
+
+    // Auth check
+    useEffect(() => {
+        const token = localStorage.getItem('admin_token');
+        if (!token) { router.replace('/login'); return; }
+        api('/api/auth/me').then(r => {
+            if (!r.ok) { localStorage.removeItem('admin_token'); router.replace('/login'); }
+            else r.json().then(d => setUser(d.user));
+        });
+    }, [router]);
+
+    // Load sites
+    const loadSites = useCallback(async () => {
+        try {
+            const r = await api('/api/sites');
+            const d = await r.json();
+            setSites(d.sites || []);
+        } catch { toastMsg('Failed to load sites', 'err'); }
+    }, [toastMsg]);
+
+    useEffect(() => { if (user) loadSites(); }, [user, loadSites]);
+
+    // Load site detail
+    const loadSite = useCallback(async (id) => {
+        try {
+            const r = await api(`/api/sites/${id}`);
+            const d = await r.json();
+            setSiteData(d);
+        } catch { toastMsg('Failed to load site', 'err'); }
+    }, [toastMsg]);
+
+    useEffect(() => { if (siteId && page === 'site') loadSite(siteId); }, [siteId, page, loadSite, tab]);
+
+    // SSE for logs
+    useEffect(() => {
+        if (page !== 'site' || tab !== 'logs' || !siteId) return;
+        const token = localStorage.getItem('admin_token');
+        const es = new EventSource(`/api/logs/${siteId}?stream=true&token=${token}`);
+        es.onmessage = (e) => {
+            try {
+                const log = JSON.parse(e.data);
+                if (log.error) return;
+                const el = logRef.current;
+                if (el) {
+                    const div = document.createElement('div');
+                    div.className = 'll';
+                    const t = new Date(log.created_at).toLocaleTimeString();
+                    div.innerHTML = `<span class="lt">${t}</span><span class="llv lv-${log.level}">${log.level.toUpperCase()}</span><span class="lm">[${log.action}] ${log.message}</span>`;
+                    el.insertBefore(div, el.firstChild);
+                }
+            } catch {}
+        };
+        return () => es.close();
+    }, [page, tab, siteId]);
+
+    const logout = () => { localStorage.removeItem('admin_token'); router.replace('/login'); };
+
+    const navigateSite = (id) => { setSiteId(id); setPage('site'); setTab('overview'); setSiteData(null); };
+
+    if (!user) return <div className="login-wrap"><div className="sp" /></div>;
+
+    // ── Render ──────────────────────────────────────────────
+    return (
+        <div className="app">
+            {/* Sidebar */}
+            <aside className="sb">
+                <div className="sb-hd"><h2>Portfolio Admin</h2><span>Dashboard</span></div>
+                <nav className="sb-nv">
+                    <button className={`ni ${page === 'dashboard' ? 'on' : ''}`} onClick={() => { setPage('dashboard'); setSiteId(null); }}>
+                        &#9638; Dashboard
+                    </button>
+                    <button className={`ni ${page === 'logs-all' ? 'on' : ''}`} onClick={() => setPage('logs-all')}>
+                        &#128196; All Logs
+                    </button>
+                </nav>
+                <div className="sb-ft">
+                    <span>{user?.email}</span>
+                    <button onClick={logout}>Logout</button>
+                </div>
+            </aside>
+
+            {/* Main */}
+            <main className="mc">
+                {/* Toast */}
+                {toast && <div className="tt-c"><div className={`tt tt-${toast.type}`}>{toast.msg}</div></div>}
+
+                {/* Dashboard */}
+                {page === 'dashboard' && <Dashboard sites={sites} onRefresh={loadSites} onOpen={navigateSite} onModal={setModal} toast={toastMsg} />}
+
+                {/* Site detail */}
+                {page === 'site' && siteData && (
+                    <SiteDetail data={siteData} tab={tab} setTab={setTab} onBack={() => { setPage('dashboard'); setSiteId(null); }}
+                        onRefresh={() => loadSite(siteId)} toast={toastMsg} logRef={logRef} onModal={setModal} />
+                )}
+                {page === 'site' && !siteData && <div className="sp" />}
+
+                {/* All logs */}
+                {page === 'logs-all' && <AllLogs toast={toastMsg} />}
+            </main>
+
+            {/* Modal */}
+            {modal && <Modal onClose={() => setModal(null)}>{modal}</Modal>}
+        </div>
+    );
+}
+
+// ── Dashboard ───────────────────────────────────────────────
+function Dashboard({ sites, onRefresh, onOpen, onModal, toast }) {
+    const live = sites.filter(s => s.status === 'live').length;
+    return (
+        <>
+            <div className="ph">
+                <div><h1>Dashboard</h1><div className="sub">Manage your portfolio sites</div></div>
+                <button className="btn btn-p" onClick={() => onModal(<UploadModal toast={toast} onDone={() => { onRefresh(); onModal(null); }} />)}>+ New Site</button>
+            </div>
+            <div className="stg">
+                <div className="st"><div className="lb">Total Sites</div><div className="vl">{sites.length}</div></div>
+                <div className="st"><div className="lb">Live</div><div className="vl" style={{ color: 'var(--ok)' }}>{live}</div></div>
+                <div className="st"><div className="lb">Drafts</div><div className="vl">{sites.length - live}</div></div>
+            </div>
+            <div className="stl">All Sites</div>
+            {sites.length === 0 ? (
+                <div className="empty">
+                    <div className="ei">&#128204;</div>
+                    <h3>No sites yet</h3>
+                    <p>Upload a ZIP or connect a Git repository to get started.</p>
+                    <button className="btn btn-p" onClick={() => onModal(<UploadModal toast={toast} onDone={() => { onRefresh(); onModal(null); }} />)}>+ Add First Site</button>
+                </div>
+            ) : (
+                <div className="sg">
+                    {sites.map(s => (
+                        <div key={s.id} className="sc" onClick={() => onOpen(s.id)}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                <h3>{s.name}</h3>
+                                <span className={`bdg bdg-${s.status}`}>{s.status}</span>
+                            </div>
+                            <div className="desc">{s.description || 'No description'}</div>
+                            <div className="meta">
+                                <span>{s.source_type === 'zip' ? '&#128196; ZIP' : '&#128187; Git'}</span>
+                                <span>v{s.current_version}</span>
+                                {s.live_url && <a href={s.live_url} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>&#128279; Live</a>}
+                                <span>{ago(s.updated_at)}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </>
+    );
+}
+
+// ── Site Detail ─────────────────────────────────────────────
+function SiteDetail({ data, tab, setTab, onBack, onRefresh, toast, logRef, onModal }) {
+    const { site, versions, logs, deploys } = data;
+
+    const doDeploy = async (provider) => {
+        toast(`Deploying to ${provider}...`, 'inf');
+        try {
+            const r = await api(`/api/sites/${site.id}/deploy`, { method: 'POST', body: { provider } });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            toast(`Deployed! ${d.deployUrl}`, 'ok');
+            setTimeout(onRefresh, 1500);
+        } catch (e) { toast(e.message, 'err'); }
+    };
+
+    const doRollback = async (vId, label) => {
+        if (!confirm(`Roll back to ${label}?`)) return;
+        try {
+            const r = await api(`/api/sites/${site.id}/rollback/${vId}`, { method: 'POST' });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            toast(d.message, 'ok');
+            onRefresh();
+        } catch (e) { toast(e.message, 'err'); }
+    };
+
+    const doDelete = async () => {
+        if (!confirm(`Delete "${site.name}"? This cannot be undone.`)) return;
+        try {
+            await api(`/api/sites/${site.id}`, { method: 'DELETE' });
+            toast('Deleted', 'ok');
+            onBack();
+        } catch (e) { toast(e.message, 'err'); }
+    };
+
+    return (
+        <>
+            <div className="ph">
+                <div>
+                    <button className="btn btn-s btn-sm" onClick={onBack} style={{ marginBottom: 8 }}>&larr; Back</button>
+                    <h1>{site.name}</h1>
+                    <div className="sub">{site.description || site.source_type}</div>
+                </div>
+                <div className="ar">
+                    <span className={`bdg bdg-${site.status}`}>{site.status}</span>
+                    {site.live_url && <a href={site.live_url} target="_blank" rel="noopener" className="btn btn-s btn-sm">&#128279; Live</a>}
+                    <button className="btn btn-s btn-sm" onClick={() => onModal(<UploadVersionModal siteId={site.id} toast={toast} onDone={() => { onRefresh(); onModal(null); }} />)}>+ Version</button>
+                    <button className="btn btn-d btn-sm" onClick={doDelete}>Delete</button>
+                </div>
+            </div>
+
+            <div className="tabs">
+                {['overview', 'versions', 'deploy', 'logs'].map(t => (
+                    <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}{t === 'versions' ? ` (${versions.length})` : ''}
+                    </button>
+                ))}
+            </div>
+
+            {tab === 'overview' && <OverviewTab site={site} versions={versions} deploys={deploys} onDeploy={doDeploy} />}
+            {tab === 'versions' && <VersionsTab versions={versions} onRollback={doRollback} />}
+            {tab === 'deploy' && <DeployTab site={site} onDeploy={doDeploy} deploys={deploys} />}
+            {tab === 'logs' && <LogsTab logs={logs} siteId={site.id} logRef={logRef} toast={toast} />}
+        </>
+    );
+}
+
+// ── Overview Tab ────────────────────────────────────────────
+function OverviewTab({ site, versions, deploys, onDeploy }) {
+    const last = deploys[0];
+    return (
+        <>
+            <div className="stg">
+                <div className="st"><div className="lb">Current Version</div><div className="vl">v{site.current_version}</div></div>
+                <div className="st"><div className="lb">Total Versions</div><div className="vl">{versions.length}</div></div>
+                <div className="st"><div className="lb">Provider</div><div className="vl">{site.deploy_provider || 'None'}</div></div>
+                <div className="st"><div className="lb">Last Deploy</div><div className="vl">{last ? ago(last.started_at) : 'Never'}</div></div>
+            </div>
+            {site.live_url && (
+                <div className="cd" style={{ marginBottom: 16 }}>
+                    <div className="cd-hd"><h3>Live URL</h3></div>
+                    <div className="cd-bd"><a href={site.live_url} target="_blank" rel="noopener">{site.live_url}</a></div>
+                </div>
+            )}
+            <div className="cd">
+                <div className="cd-hd"><h3>Quick Deploy</h3></div>
+                <div className="cd-bd">
+                    <div className="dpb">
+                        <button className="dp" onClick={() => onDeploy('netlify')}>Deploy to Netlify</button>
+                        <button className="dp" onClick={() => onDeploy('vercel')}>Deploy to Vercel</button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ── Versions Tab ────────────────────────────────────────────
+function VersionsTab({ versions, onRollback }) {
+    if (!versions.length) return <div className="empty"><h3>No versions</h3></div>;
+    return (
+        <div className="cd"><div className="cd-bd" style={{ overflowX: 'auto' }}>
+            <table className="tbl">
+                <thead><tr><th>Version</th><th>Label</th><th>Status</th><th>Deploy URL</th><th>Created</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {versions.map(v => (
+                        <tr key={v.id}>
+                            <td><strong>v{v.version_number}</strong></td>
+                            <td>{v.label || '-'}</td>
+                            <td><span className={`bdg bdg-${v.status}`}>{v.status}</span></td>
+                            <td>{v.deploy_url ? <a href={v.deploy_url} target="_blank" rel="noopener">{v.deploy_url.substring(0, 40)}...</a> : '-'}</td>
+                            <td>{ago(v.created_at)}</td>
+                            <td>{v.status !== 'deployed' ? <button className="btn btn-p btn-sm" onClick={() => onRollback(v.id, `v${v.version_number} (${v.label})`)}>Rollback</button> : <span style={{ color: 'var(--ok)', fontSize: '.75rem' }}>Active</span>}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div></div>
+    );
+}
+
+// ── Deploy Tab ──────────────────────────────────────────────
+function DeployTab({ site, onDeploy, deploys }) {
+    return (
+        <>
+            <div className="cd" style={{ marginBottom: 16 }}>
+                <div className="cd-hd"><h3>Deploy to Netlify</h3></div>
+                <div className="cd-bd">
+                    <p style={{ color: 'var(--fg2)', fontSize: '.875rem', marginBottom: 16 }}>
+                        Deploy the latest version to Netlify. {site.deploy_site_id ? `Connected: ${site.deploy_site_id}` : 'A new site will be created.'}
+                    </p>
+                    <button className="dp" onClick={() => onDeploy('netlify')}>Deploy to Netlify</button>
+                </div>
+            </div>
+            <div className="cd" style={{ marginBottom: 16 }}>
+                <div className="cd-hd"><h3>Deploy to Vercel</h3></div>
+                <div className="cd-bd">
+                    <p style={{ color: 'var(--fg2)', fontSize: '.875rem', marginBottom: 16 }}>
+                        Deploy the latest version to Vercel. {site.deploy_site_id ? `Connected: ${site.deploy_site_id}` : 'A new project will be created.'}
+                    </p>
+                    <button className="dp" onClick={() => onDeploy('vercel')}>Deploy to Vercel</button>
+                </div>
+            </div>
+            {deploys.length > 0 && (
+                <div className="cd">
+                    <div className="cd-hd"><h3>Deploy History</h3></div>
+                    <div className="cd-bd" style={{ overflowX: 'auto' }}>
+                        <table className="tbl">
+                            <thead><tr><th>Provider</th><th>Status</th><th>URL</th><th>Time</th></tr></thead>
+                            <tbody>
+                                {deploys.map(d => (
+                                    <tr key={d.id}>
+                                        <td>{d.provider}</td>
+                                        <td><span className={`bdg bdg-${d.status}`}>{d.status}</span></td>
+                                        <td>{d.deploy_url ? <a href={d.deploy_url} target="_blank" rel="noopener">{d.deploy_url.substring(0, 50)}...</a> : '-'}</td>
+                                        <td>{ago(d.started_at)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
+// ── Logs Tab ────────────────────────────────────────────────
+function LogsTab({ logs, siteId, logRef, toast }) {
+    const clearLogs = async () => {
+        await api(`/api/logs/${siteId}`, { method: 'DELETE' });
+        if (logRef.current) logRef.current.innerHTML = '<div style="color:var(--fg3)">Logs cleared</div>';
+        toast('Logs cleared', 'inf');
+    };
+    return (
+        <div className="cd">
+            <div className="cd-hd"><h3>Build Logs</h3><button className="btn btn-s btn-sm" onClick={clearLogs}>Clear</button></div>
+            <div className="cd-bd">
+                <div className="lv" ref={logRef}>
+                    {logs.map((l, i) => (
+                        <div key={l.id || i} className="ll">
+                            <span className="lt">{new Date(l.created_at).toLocaleTimeString()}</span>
+                            <span className={`llv lv-${l.level}`}>{l.level.toUpperCase()}</span>
+                            <span className="lm">[{l.action}] {l.message}</span>
+                        </div>
+                    ))}
+                    {logs.length === 0 && <div style={{ color: 'var(--fg3)' }}>No logs yet</div>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── All Logs Page ───────────────────────────────────────────
+function AllLogs({ toast }) {
+    const [logs, setLogs] = useState([]);
+    useEffect(() => {
+        api('/api/logs?limit=100').then(r => r.json()).then(d => setLogs(d.logs || [])).catch(() => {});
+    }, []);
+    return (
+        <>
+            <div className="ph"><div><h1>All Build Logs</h1><div className="sub">Recent activity across all sites</div></div></div>
+            <div className="cd"><div className="cd-bd">
+                <div className="lv">
+                    {logs.map((l, i) => (
+                        <div key={l.id || i} className="ll">
+                            <span className="lt">{new Date(l.created_at).toLocaleTimeString()}</span>
+                            <span className={`llv lv-${l.level}`}>{l.level.toUpperCase()}</span>
+                            <span className="lm">[{l.site_name || 'System'}] [{l.action}] {l.message}</span>
+                        </div>
+                    ))}
+                    {logs.length === 0 && <div style={{ color: 'var(--fg3)' }}>No logs yet</div>}
+                </div>
+            </div></div>
+        </>
+    );
+}
+
+// ── Upload Modal (New Site) ─────────────────────────────────
+function UploadModal({ toast, onDone }) {
+    const [mode, setMode] = useState('zip');
+    const [name, setName] = useState('');
+    const [desc, setDesc] = useState('');
+    const [file, setFile] = useState(null);
+    const [gitUrl, setGitUrl] = useState('');
+    const [busy, setBusy] = useState(false);
+    const fileRef = useRef(null);
+
+    const submit = async () => {
+        if (!name) return toast('Name required', 'err');
+        setBusy(true);
+        try {
+            if (mode === 'zip') {
+                if (!file) return toast('Select a ZIP file', 'err'), setBusy(false);
+                const fd = new FormData();
+                fd.append('file', file); fd.append('name', name); fd.append('description', desc);
+                const r = await api('/api/sites/upload', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error);
+                toast('Site created!', 'ok');
+            } else {
+                if (!gitUrl) return toast('Git URL required', 'err'), setBusy(false);
+                const r = await api('/api/sites', { method: 'POST', body: { name, description: desc, gitUrl } });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error);
+                toast('Site created!', 'ok');
+            }
+            onDone();
+        } catch (e) { toast(e.message, 'err'); setBusy(false); }
+    };
+
+    return (
+        <>
+            <div className="mo-h"><h3>Add New Site</h3><button className="mo-x" onClick={onDone}>&times;</button></div>
+            <div className="mo-b">
+                <div className="tabs">
+                    <button className={`tab ${mode === 'zip' ? 'on' : ''}`} onClick={() => setMode('zip')}>Upload ZIP</button>
+                    <button className={`tab ${mode === 'git' ? 'on' : ''}`} onClick={() => setMode('git')}>Git Repository</button>
+                </div>
+                <div className="fg"><label>Site Name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="My Project" /></div>
+                <div className="fg"><label>Description</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional description" /></div>
+                {mode === 'zip' ? (
+                    <>
+                        <div className="ua" onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}>
+                            <div className="ico">&#128196;</div>
+                            <div className="txt">{file ? file.name : 'Click or drag a ZIP file here'}</div>
+                            <div className="hnt">Max 50MB</div>
+                        </div>
+                        <input ref={fileRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+                    </>
+                ) : (
+                    <div className="fg"><label>Git Repository URL</label><input value={gitUrl} onChange={e => setGitUrl(e.target.value)} placeholder="https://github.com/user/repo.git" /></div>
+                )}
+            </div>
+            <div className="mo-f">
+                <button className="btn btn-s" onClick={onDone}>Cancel</button>
+                <button className="btn btn-p" onClick={submit} disabled={busy}>{busy ? <><span className="sp" /> Creating...</> : 'Create Site'}</button>
+            </div>
+        </>
+    );
+}
+
+// ── Upload Version Modal ────────────────────────────────────
+function UploadVersionModal({ siteId, toast, onDone }) {
+    const [file, setFile] = useState(null);
+    const [label, setLabel] = useState('');
+    const [busy, setBusy] = useState(false);
+    const fileRef = useRef(null);
+
+    const submit = async () => {
+        if (!file) return toast('Select a ZIP file', 'err');
+        setBusy(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file); fd.append('label', label);
+            const r = await api(`/api/sites/${siteId}/upload`, { method: 'POST', body: fd });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            toast('Version uploaded!', 'ok');
+            onDone();
+        } catch (e) { toast(e.message, 'err'); setBusy(false); }
+    };
+
+    return (
+        <>
+            <div className="mo-h"><h3>Upload New Version</h3><button className="mo-x" onClick={onDone}>&times;</button></div>
+            <div className="mo-b">
+                <div className="fg"><label>Label (optional)</label><input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Bug fixes" /></div>
+                <div className="ua" onClick={() => fileRef.current?.click()}>
+                    <div className="ico">&#128196;</div>
+                    <div className="txt">{file ? file.name : 'Click to select a ZIP file'}</div>
+                </div>
+                <input ref={fileRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+            </div>
+            <div className="mo-f">
+                <button className="btn btn-s" onClick={onDone}>Cancel</button>
+                <button className="btn btn-p" onClick={submit} disabled={busy}>{busy ? <><span className="sp" /> Uploading...</> : 'Upload'}</button>
+            </div>
+        </>
+    );
+}
+
+// ── Modal wrapper ───────────────────────────────────────────
+function Modal({ children, onClose }) {
+    return (
+        <div className="mo open" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+            <div className="mo-c">{children}</div>
+        </div>
+    );
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+function ago(d) {
+    const s = Math.floor((Date.now() - new Date(d)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
+}
