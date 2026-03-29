@@ -148,7 +148,7 @@ export async function POST(request, { params }) {
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: site.slug }),
                 });
-                if (!cr.ok) { const t = await cr.text(); throw new Error(`Netlify site create failed: ${t}`); }
+                if (!cr.ok) { const t = await cr.text(); throw new Error(`Netlify site create failed (${cr.status}): ${t}`); }
                 const ns = await cr.json();
                 await sql`UPDATE sites SET deploy_site_id=${ns.id} WHERE id=${id}`;
                 url = `https://api.netlify.com/api/v1/sites/${ns.id}/deploys`;
@@ -156,10 +156,14 @@ export async function POST(request, { params }) {
 
             const dr = await fetch(url, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
-                body: zipBuf,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/zip',
+                    'Content-Length': zipBuf.length.toString(),
+                },
+                body: new Uint8Array(zipBuf),
             });
-            if (!dr.ok) { const t = await dr.text(); throw new Error(`Netlify deploy failed: ${t}`); }
+            if (!dr.ok) { const t = await dr.text(); throw new Error(`Netlify deploy failed (${dr.status}): ${t}`); }
             const dd = await dr.json();
             deployUrl = dd.ssl_url || dd.url;
             deployId = dd.id;
