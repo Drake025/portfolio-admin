@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
-import { listFiles } from '@/lib/storage';
+import { listFiles, uploadFile } from '@/lib/storage';
+import { getContentType } from '@/lib/utils';
 import fetch from 'node-fetch';
 import AdmZip from 'adm-zip';
 
@@ -29,37 +30,119 @@ export async function POST(request, { params }) {
             const vr = await sql`SELECT * FROM versions WHERE site_id=${id} ORDER BY version_number DESC LIMIT 1`;
             ver = vr.rows[0];
         }
-        if (!ver) return NextResponse.json({ error: 'Version not found' }, { status: 404 });
+        if (!ver) return NextResponse.json({ error: 'No versions found. Upload a ZIP or add a Git URL first.' }, { status: 400 });
 
         await addLog(parseInt(id), ver.id, 'deploy', 'info', `Starting ${provider} deploy...`);
 
-        const blobs = await listFiles(ver.storage_prefix + '/');
-        if (!blobs.length) return NextResponse.json({ error: 'No files in this version' }, { status: 400 });
+        // Check if files exist in blob storage
+        let blobs = await listFiles(ver.storage_prefix + '/');
 
-        await addLog(parseInt(id), ver.id, 'deploy', 'info', `Packaging ${blobs.length} files...`);
+        // If no files and this is a Git site, clone from GitHub
+        if (!blobs.length && site.git_url) {
+            await addLog(parseInt(id), ver.id, 'deploy', 'info', 'No files in storage. Fetching from Git repository...');
+
+            const gitUrl = site.git_url;
+            // Convert git URL to ZIP download URL
+            // https://github.com/user/repo.git -> https://github.com/user/repo/archive/refs/heads/main.zip
+            // https://github.com/user/repo -> https://github.com/user/repo/archive/refs/heads/main.zip
+            let zipUrl = gitUrl.replace(/\.git$/, '').replace('github.com/', 'github.com/');
+            // Try common branches
+            const branches = ['main', 'master'];
+            let zipBuffer = null;
+
+            for (const branch of branches) {
+                const tryUrl = `${zipUrl}/archive/refs/heads/${branch}.zip`;
+                await addLog(parseInt(id), ver.id, 'deploy', 'debug', `Trying ${tryUrl}`);
+                try {
+                    const resp = await fetch(tryUrl, {
+                        headers: { 'User-Agent': 'portfolio-admin' },
+                        redirect: 'follow',
+                    });
+                    if (resp.ok) {
+                        zipBuffer = Buffer.from(await resp.arrayBuffer());
+                        await addLog(parseInt(id), ver.id, 'deploy', 'info', `Downloaded repo from ${branch} branch`);
+                        break;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            if (!zipBuffer) {
+                return NextResponse.json({
+                    error: 'Could not download repository. Check the Git URL is correct and the repo is public, or upload a ZIP file instead.'
+                }, { status: 400 });
+            }
+
+            // Extract ZIP and upload each file to blob storage
+            const zip = new AdmZip(zipBuffer);
+            const entries = zip.getEntries();
+            // GitHub ZIPs have a root folder like "repo-main/", skip it
+            const rootPrefix = entries.find(e => e.entryName.includes('/'))?.entryName.split('/')[0] + '/';
+
+            await addLog(parseInt(id), ver.id, 'deploy', 'info', `Extracting and uploading files to storage...`);
+
+            let count = 0;
+            for (const entry of entries) {
+                if (entry.isDirectory) continue;
+                if (entry.entryName.startsWith('__MACOSX')) continue;
+                if (entry.entryName.includes('.DS_Store')) continue;
+
+                const relativePath = rootPrefix ? entry.entryName.replace(rootPrefix, '') : entry.entryName;
+                if (!relativePath) continue;
+
+                const contentType = getContentType(relativePath);
+                await uploadFile(`${ver.storage_prefix}/${relativePath}`, entry.getData(), contentType);
+                count++;
+            }
+
+            await addLog(parseInt(id), ver.id, 'deploy', 'info', `Uploaded ${count} files to storage`);
+
+            // Re-list blobs
+            blobs = await listFiles(ver.storage_prefix + '/');
+        }
+
+        if (!blobs.length) {
+            return NextResponse.json({
+                error: 'No files found. Upload a ZIP file or connect a Git repository.'
+            }, { status: 400 });
+        }
+
+        await addLog(parseInt(id), ver.id, 'deploy', 'info', `Packaging ${blobs.length} files for deploy...`);
 
         // Build ZIP from cloud storage
         const zip = new AdmZip();
         for (const f of blobs) {
             const rel = f.key.replace(ver.storage_prefix + '/', '');
-            const resp = await fetch(f.url);
-            zip.addFile(rel, Buffer.from(await resp.arrayBuffer()));
+            if (!rel || rel.endsWith('/')) continue;
+            try {
+                const resp = await fetch(f.url);
+                if (resp.ok) {
+                    zip.addFile(rel, Buffer.from(await resp.arrayBuffer()));
+                }
+            } catch (e) {
+                await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${rel}`);
+            }
         }
         const zipBuf = zip.toBuffer();
+
+        if (zipBuf.length < 10) {
+            return NextResponse.json({ error: 'ZIP package is empty. Check your source files.' }, { status: 400 });
+        }
 
         let deployUrl, deployId;
 
         if (provider === 'netlify') {
             const token = process.env.NETLIFY_TOKEN;
-            if (!token) return NextResponse.json({ error: 'NETLIFY_TOKEN not configured' }, { status: 400 });
+            if (!token) return NextResponse.json({ error: 'NETLIFY_TOKEN not configured. Add it in Vercel Settings > Environment Variables.' }, { status: 400 });
 
             const siteId = site.deploy_site_id;
-            let url, body;
+            let url;
 
             if (siteId) {
                 url = `https://api.netlify.com/api/v1/sites/${siteId}/deploys`;
             } else {
-                // Create site first
+                await addLog(parseInt(id), ver.id, 'deploy', 'info', 'Creating new Netlify site...');
                 const cr = await fetch('https://api.netlify.com/api/v1/sites', {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -83,15 +166,20 @@ export async function POST(request, { params }) {
 
         } else if (provider === 'vercel') {
             const token = process.env.VERCEL_TOKEN;
-            if (!token) return NextResponse.json({ error: 'VERCEL_TOKEN not configured' }, { status: 400 });
+            if (!token) return NextResponse.json({ error: 'VERCEL_TOKEN not configured. Add it in Vercel Settings > Environment Variables.' }, { status: 400 });
 
             const files = await Promise.all(blobs.map(async f => {
-                const resp = await fetch(f.url);
-                const buf = Buffer.from(await resp.arrayBuffer());
-                return { file: f.key.replace(ver.storage_prefix + '/', ''), data: buf.toString('base64'), encoding: 'base64' };
-            }));
+                const rel = f.key.replace(ver.storage_prefix + '/', '');
+                if (!rel || rel.endsWith('/')) return null;
+                try {
+                    const resp = await fetch(f.url);
+                    if (!resp.ok) return null;
+                    const buf = Buffer.from(await resp.arrayBuffer());
+                    return { file: rel, data: buf.toString('base64'), encoding: 'base64' };
+                } catch { return null; }
+            }).filter(Boolean));
 
-            const body = { name: site.slug, files, projectSettings: { framework: null } };
+            const body = { name: site.slug, files: files.filter(Boolean), projectSettings: { framework: null } };
             if (site.deploy_site_id) body.project = site.deploy_site_id;
 
             const dr = await fetch('https://api.vercel.com/v13/deployments', {
