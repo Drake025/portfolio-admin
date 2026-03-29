@@ -403,9 +403,12 @@ function UploadModal({ toast, onDone }) {
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
     const [file, setFile] = useState(null);
+    const [files, setFiles] = useState([]);
     const [gitUrl, setGitUrl] = useState('');
     const [busy, setBusy] = useState(false);
-    const fileRef = useRef(null);
+    const zipRef = useRef(null);
+    const filesRef = useRef(null);
+    const folderRef = useRef(null);
 
     const submit = async () => {
         if (!name) return toast('Name required', 'err');
@@ -419,6 +422,15 @@ function UploadModal({ toast, onDone }) {
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
                 toast('Site created!', 'ok');
+            } else if (mode === 'files') {
+                if (!files.length) return toast('Select files or a folder', 'err'), setBusy(false);
+                const fd = new FormData();
+                for (const f of files) fd.append('files', f);
+                fd.append('name', name); fd.append('description', desc);
+                const r = await api('/api/sites/upload', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error);
+                toast(`Site created with ${files.length} files!`, 'ok');
             } else {
                 if (!gitUrl) return toast('Git URL required', 'err'), setBusy(false);
                 const r = await api('/api/sites', { method: 'POST', body: { name, description: desc, gitUrl } });
@@ -435,22 +447,39 @@ function UploadModal({ toast, onDone }) {
             <div className="mo-h"><h3>Add New Site</h3><button className="mo-x" onClick={onDone}>&times;</button></div>
             <div className="mo-b">
                 <div className="tabs">
-                    <button className={`tab ${mode === 'zip' ? 'on' : ''}`} onClick={() => setMode('zip')}>Upload ZIP</button>
-                    <button className={`tab ${mode === 'git' ? 'on' : ''}`} onClick={() => setMode('git')}>Git Repository</button>
+                    <button className={`tab ${mode === 'zip' ? 'on' : ''}`} onClick={() => setMode('zip')}>ZIP</button>
+                    <button className={`tab ${mode === 'files' ? 'on' : ''}`} onClick={() => setMode('files')}>Files / Folder</button>
+                    <button className={`tab ${mode === 'git' ? 'on' : ''}`} onClick={() => setMode('git')}>Git</button>
                 </div>
                 <div className="fg"><label>Site Name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="My Project" /></div>
                 <div className="fg"><label>Description</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional description" /></div>
                 {mode === 'zip' ? (
                     <>
-                        <div className="ua" onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}>
+                        <div className="ua" onClick={() => zipRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}>
                             <div className="ico">&#128196;</div>
                             <div className="txt">{file ? file.name : 'Click or drag a ZIP file here'}</div>
                             <div className="hnt">Max 50MB</div>
                         </div>
-                        <input ref={fileRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+                        <input ref={zipRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+                    </>
+                ) : mode === 'files' ? (
+                    <>
+                        <div className="ua" onClick={() => filesRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); setFiles(Array.from(e.dataTransfer.files)); }}>
+                            <div className="ico">&#128193;</div>
+                            <div className="txt">{files.length ? `${files.length} files selected` : 'Click to select files or drag them here'}</div>
+                            <div className="hnt">Select multiple files or an entire folder</div>
+                        </div>
+                        <input ref={filesRef} type="file" multiple style={{ display: 'none' }} onChange={e => setFiles(Array.from(e.target.files))} />
+                        <div style={{ textAlign: 'center', margin: '8px 0', color: 'var(--fg3)', fontSize: '.8125rem' }}>or</div>
+                        <div className="ua" onClick={() => folderRef.current?.click()}>
+                            <div className="ico">&#128194;</div>
+                            <div className="txt">Select entire folder</div>
+                            <div className="hnt">Picks up index.html, CSS, JS, images, etc.</div>
+                        </div>
+                        <input ref={folderRef} type="file" webkitdirectory="true" style={{ display: 'none' }} onChange={e => setFiles(Array.from(e.target.files))} />
                     </>
                 ) : (
-                    <div className="fg"><label>Git Repository URL</label><input value={gitUrl} onChange={e => setGitUrl(e.target.value)} placeholder="https://github.com/user/repo.git" /></div>
+                    <div className="fg"><label>Git Repository URL</label><input value={gitUrl} onChange={e => setGitUrl(e.target.value)} placeholder="https://github.com/user/repo" /></div>
                 )}
             </div>
             <div className="mo-f">
@@ -464,16 +493,26 @@ function UploadModal({ toast, onDone }) {
 // ── Upload Version Modal ────────────────────────────────────
 function UploadVersionModal({ siteId, toast, onDone }) {
     const [file, setFile] = useState(null);
+    const [files, setFiles] = useState([]);
+    const [mode, setMode] = useState('zip');
     const [label, setLabel] = useState('');
     const [busy, setBusy] = useState(false);
-    const fileRef = useRef(null);
+    const zipRef = useRef(null);
+    const filesRef = useRef(null);
+    const folderRef = useRef(null);
 
     const submit = async () => {
-        if (!file) return toast('Select a ZIP file', 'err');
         setBusy(true);
         try {
             const fd = new FormData();
-            fd.append('file', file); fd.append('label', label);
+            fd.append('label', label);
+            if (mode === 'zip') {
+                if (!file) return toast('Select a ZIP file', 'err'), setBusy(false);
+                fd.append('file', file);
+            } else {
+                if (!files.length) return toast('Select files or a folder', 'err'), setBusy(false);
+                for (const f of files) fd.append('files', f);
+            }
             const r = await api(`/api/sites/${siteId}/upload`, { method: 'POST', body: fd });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
@@ -486,12 +525,34 @@ function UploadVersionModal({ siteId, toast, onDone }) {
         <>
             <div className="mo-h"><h3>Upload New Version</h3><button className="mo-x" onClick={onDone}>&times;</button></div>
             <div className="mo-b">
-                <div className="fg"><label>Label (optional)</label><input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Bug fixes" /></div>
-                <div className="ua" onClick={() => fileRef.current?.click()}>
-                    <div className="ico">&#128196;</div>
-                    <div className="txt">{file ? file.name : 'Click to select a ZIP file'}</div>
+                <div className="tabs">
+                    <button className={`tab ${mode === 'zip' ? 'on' : ''}`} onClick={() => setMode('zip')}>ZIP</button>
+                    <button className={`tab ${mode === 'files' ? 'on' : ''}`} onClick={() => setMode('files')}>Files / Folder</button>
                 </div>
-                <input ref={fileRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+                <div className="fg"><label>Label (optional)</label><input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Bug fixes" /></div>
+                {mode === 'zip' ? (
+                    <>
+                        <div className="ua" onClick={() => zipRef.current?.click()}>
+                            <div className="ico">&#128196;</div>
+                            <div className="txt">{file ? file.name : 'Click to select a ZIP file'}</div>
+                        </div>
+                        <input ref={zipRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+                    </>
+                ) : (
+                    <>
+                        <div className="ua" onClick={() => filesRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); setFiles(Array.from(e.dataTransfer.files)); }}>
+                            <div className="ico">&#128193;</div>
+                            <div className="txt">{files.length ? `${files.length} files selected` : 'Click to select files or drag them here'}</div>
+                        </div>
+                        <input ref={filesRef} type="file" multiple style={{ display: 'none' }} onChange={e => setFiles(Array.from(e.target.files))} />
+                        <div style={{ textAlign: 'center', margin: '8px 0', color: 'var(--fg3)', fontSize: '.8125rem' }}>or</div>
+                        <div className="ua" onClick={() => folderRef.current?.click()}>
+                            <div className="ico">&#128194;</div>
+                            <div className="txt">Select entire folder</div>
+                        </div>
+                        <input ref={folderRef} type="file" webkitdirectory="true" style={{ display: 'none' }} onChange={e => setFiles(Array.from(e.target.files))} />
+                    </>
+                )}
             </div>
             <div className="mo-f">
                 <button className="btn btn-s" onClick={onDone}>Cancel</button>
