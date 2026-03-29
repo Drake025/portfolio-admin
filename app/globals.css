@@ -724,6 +724,41 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
     gap: 8px;
     flex-wrap: wrap;
 }
+.pub-about-expertise {
+    margin-bottom: 16px;
+}
+.pub-about-expertise h4 {
+    font-size: .9375rem;
+    font-weight: 600;
+    color: var(--pub-text);
+    margin-bottom: 10px;
+}
+.pub-about-skills {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 6px;
+}
+.pub-about-skills li {
+    font-size: .875rem;
+    color: var(--pub-text2);
+    padding: 6px 12px;
+    background: var(--pub-accent-soft);
+    border-radius: 8px;
+}
+.pub-about-closing {
+    font-size: .9375rem;
+    color: var(--pub-accent);
+    font-weight: 500;
+    font-style: italic;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    padding: 16px;
+    border-left: 3px solid var(--pub-accent);
+    background: var(--pub-accent-soft);
+    border-radius: 0 8px 8px 0;
+}
 
 /* Responsive */
 @media (max-width: 768px) {

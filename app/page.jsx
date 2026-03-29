@@ -146,11 +146,39 @@ export default function HomePage() {
                             <div className="pub-about-avatar">P</div>
                             <div className="pub-about-content">
                                 <h3 className="pub-about-name">Prince Jeremie Malana</h3>
-                                <p className="pub-about-role">Full-Stack Developer</p>
+                                <p className="pub-about-role">Web Developer &mdash; Dashboards, Admin Panels & Web Apps</p>
                                 <p className="pub-about-bio">
-                                    I build web applications that solve real problems. Passionate about clean architecture,
-                                    modern frameworks, and creating seamless user experiences. From front-end interfaces
-                                    to back-end systems, I enjoy the entire development lifecycle.
+                                    I&apos;m a web developer passionate about building dashboards, admin panels, and
+                                    production-ready web applications. My focus is on creating tools that are not only
+                                    functional but also polished, scalable, and recruiter-friendly.
+                                </p>
+                                <p className="pub-about-bio">
+                                    I graduated with a Bachelor of Science in Information Technology from Mabalacat City
+                                    College, and since then I&apos;ve shipped projects like Break Time Monitoring, a real-time
+                                    system for tracking employee breaks, alongside my personal portfolio site. These
+                                    projects reflect my commitment to clarity, usability, and professional design.
+                                </p>
+                                <div className="pub-about-expertise">
+                                    <h4>My Expertise</h4>
+                                    <ul className="pub-about-skills">
+                                        <li>Frontend development with React and Next.js</li>
+                                        <li>Backend/API design using Node.js and NestJS</li>
+                                        <li>Database management with PostgreSQL and Firebase</li>
+                                        <li>Deployment on Vercel, Netlify, and DigitalOcean</li>
+                                        <li>CI/CD automation with GitHub Actions</li>
+                                        <li>Security and performance optimization</li>
+                                        <li>UI/UX design with a focus on responsive, modern interfaces</li>
+                                    </ul>
+                                </div>
+                                <p className="pub-about-bio">
+                                    I believe that great software is about more than just code &mdash; it&apos;s about solving
+                                    problems elegantly and making workflows seamless. My portfolio is designed to showcase
+                                    that philosophy, with every project built to be clear, efficient, and easy to manage.
+                                </p>
+                                <p className="pub-about-closing">
+                                    I&apos;m energized by the challenge of turning complex requirements into simple, elegant
+                                    solutions. Whether it&apos;s a dashboard, admin panel, or full web app, I build with one
+                                    goal in mind: helping teams work smarter and faster.
                                 </p>
                                 <div className="pub-about-links">
                                     <a href="mailto:malanaprincejeremie@gmail.com" className="pub-btn pub-btn-primary pub-btn-sm">
