@@ -66,14 +66,13 @@ export default function HomePage() {
             {/* Hero */}
             <header className="pub-hero">
                 <div className="pub-hero-inner">
-                    <div className="pub-hero-badge">{"\uD83D\uDC4B"} Hi, I&apos;m Prince Jeremie Malana</div>
+                    <div className="pub-hero-badge">{"\uD83D\uDC4B"} Welcome to my portfolio</div>
                     <h1 className="pub-hero-title">
-                        Building dashboards and web apps that <span className="pub-accent">work as hard as you do</span>
+                        Building <span className="pub-accent">digital experiences</span> that matter
                     </h1>
                     <p className="pub-hero-sub">
-                        I&apos;m a web developer specializing in dashboards, admin panels, and production-ready web apps.
-                        I build polished, scalable solutions with Next.js, Node.js, and Vercel/Postgres,
-                        turning complex workflows into seamless, recruiter-friendly experiences.
+                        Full-stack developer crafting modern web applications with clean code and thoughtful design.
+                        Every project below is live &mdash; click to explore.
                     </p>
                     <div className="pub-hero-stats">
                         <div className="pub-stat">
