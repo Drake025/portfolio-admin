@@ -143,9 +143,12 @@ function Dashboard({ sites, onRefresh, onOpen, onModal, toast }) {
             const r = await api('/api/sites/fix-protection', { method: 'POST' });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
-            const fixed = d.results.filter(r => r.status === 'fixed').length;
-            const failed = d.results.filter(r => r.status === 'failed').length;
-            toast(`Protection fixed: ${fixed} site(s)${failed ? `, ${failed} failed` : ''}`, failed ? 'err' : 'ok');
+            const failed = d.results.filter(r => r.status === 'failed');
+            if (failed.length) {
+                toast(`Failed: ${failed[0].error || 'Unknown error'}`, 'err');
+            } else {
+                toast('All sites are now public!', 'ok');
+            }
         } catch (e) { toast(e.message, 'err'); }
     };
 
