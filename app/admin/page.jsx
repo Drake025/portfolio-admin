@@ -560,7 +560,7 @@ function UploadModal({ toast, onDone }) {
             if (mode === 'zip') {
                 if (!file) return toast('Select a ZIP file', 'err'), setBusy(false);
                 // Extract ZIP on client side, then upload files individually
-                const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+                const JSZip = (await import('jszip')).default;
                 const zip = await JSZip.loadAsync(file);
                 const prefix = `sites/upload-${Date.now()}`;
                 let uploaded = 0;
