@@ -564,23 +564,36 @@ function UploadModal({ toast, onDone }) {
                 const r = await api('/api/sites/upload', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
-                // Update extra fields
                 if (githubUrl || techStack) {
                     await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
                 }
                 toast('Site created!', 'ok');
             } else if (mode === 'files') {
                 if (!files.length) return toast('Select files or a folder', 'err'), setBusy(false);
-                const fd = new FormData();
-                for (const f of files) fd.append('files', f);
-                fd.append('name', name); fd.append('description', desc);
-                const r = await api('/api/sites/upload', { method: 'POST', body: fd });
+                // Chunked upload: send files one at a time to avoid body size limit
+                const prefix = `sites/upload-${Date.now()}`;
+                let uploaded = 0;
+                for (const f of files) {
+                    if (!f || typeof f === 'string') continue;
+                    if (f.name === '.DS_Store' || f.name.includes('__MACOSX')) continue;
+                    const filePath = f.webkitRelativePath || f.name;
+                    const fd = new FormData();
+                    fd.append('file', f);
+                    fd.append('prefix', prefix);
+                    fd.append('path', filePath);
+                    const r = await api('/api/sites/upload-chunk', { method: 'POST', body: fd });
+                    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+                    uploaded++;
+                    if (uploaded % 10 === 0) toast(`Uploading... ${uploaded}/${files.length}`, 'inf');
+                }
+                // Finalize: create the site in database
+                const r = await api('/api/sites/upload-finalize', {
+                    method: 'POST',
+                    body: { name, description: desc, prefix, fileCount: uploaded, githubUrl, techStack },
+                });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
-                if (githubUrl || techStack) {
-                    await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
-                }
-                toast(`Site created with ${files.length} files!`, 'ok');
+                toast(`Site created with ${uploaded} files!`, 'ok');
             } else {
                 if (!gitUrl) return toast('Git URL required', 'err'), setBusy(false);
                 const r = await api('/api/sites', { method: 'POST', body: { name, description: desc, gitUrl } });
