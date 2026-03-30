@@ -4,29 +4,34 @@ import { requireAuth } from '@/lib/auth';
 import { uploadFile } from '@/lib/storage';
 import { getContentType } from '@/lib/utils';
 
-// POST /api/sites/upload-chunk — upload a single file chunk
+// POST /api/sites/upload-chunk — upload a batch of files
 export async function POST(request) {
     const { error } = requireAuth(request);
     if (error) return error;
 
     try {
         const formData = await request.formData();
-        const file = formData.get('file');
         const prefix = formData.get('prefix');
-        const path = formData.get('path');
+        const files = formData.getAll('files');
+        const paths = formData.getAll('paths');
 
-        if (!file || typeof file === 'string') {
-            return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-        }
-        if (!prefix || !path) {
-            return NextResponse.json({ error: 'Missing prefix or path' }, { status: 400 });
+        if (!prefix || !files.length) {
+            return NextResponse.json({ error: 'Missing prefix or files' }, { status: 400 });
         }
 
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const fullPath = `${prefix}/${path}`;
-        await uploadFile(fullPath, buffer, getContentType(path));
+        let uploaded = 0;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const path = paths[i];
+            if (!file || typeof file === 'string' || !path) continue;
 
-        return NextResponse.json({ ok: true, path });
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const fullPath = `${prefix}/${path}`;
+            await uploadFile(fullPath, buffer, getContentType(path));
+            uploaded++;
+        }
+
+        return NextResponse.json({ ok: true, uploaded });
     } catch (e) {
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
