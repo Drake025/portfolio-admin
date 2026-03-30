@@ -592,9 +592,11 @@ function UploadModal({ toast, onDone }) {
                 return;
             }
 
-            // Batch upload: send 10 files per request
+            // Batch upload: send 10 files per request, 5 parallel batches
             const BATCH = 10;
+            const CONCURRENT = 5;
             let uploaded = 0;
+            const batches = [];
             for (let i = 0; i < allFiles.length; i += BATCH) {
                 const batch = allFiles.slice(i, i + BATCH);
                 const fd = new FormData();
@@ -603,10 +605,16 @@ function UploadModal({ toast, onDone }) {
                     fd.append('files', f);
                     fd.append('paths', path);
                 }
-                const r = await api('/api/sites/upload-chunk', { method: 'POST', body: fd });
-                if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
-                const d = await r.json();
-                uploaded += d.uploaded || 0;
+                batches.push(fd);
+            }
+            for (let i = 0; i < batches.length; i += CONCURRENT) {
+                const slice = batches.slice(i, i + CONCURRENT);
+                const results = await Promise.all(slice.map(fd => api('/api/sites/upload-chunk', { method: 'POST', body: fd })));
+                for (const r of results) {
+                    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+                    const d = await r.json();
+                    uploaded += d.uploaded || 0;
+                }
                 toast(`Uploading... ${uploaded}/${allFiles.length}`, 'inf');
             }
 
