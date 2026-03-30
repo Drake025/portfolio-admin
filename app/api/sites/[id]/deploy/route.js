@@ -224,6 +224,15 @@ export async function POST(request, { params }) {
                 } catch { return null; }
             }).filter(Boolean));
 
+            // Ensure index.html exists - copy first HTML file if missing
+            const hasIndex = files.some(f => f && f.file.toLowerCase() === 'index.html');
+            if (!hasIndex) {
+                const htmlFile = files.find(f => f && f.file.toLowerCase().endsWith('.html'));
+                if (htmlFile) {
+                    files.push({ file: 'index.html', data: htmlFile.data, encoding: 'base64' });
+                }
+            }
+
             const body = {
                 name: site.slug,
                 files: files.filter(Boolean),
