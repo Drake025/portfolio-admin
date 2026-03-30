@@ -559,15 +559,34 @@ function UploadModal({ toast, onDone }) {
         try {
             if (mode === 'zip') {
                 if (!file) return toast('Select a ZIP file', 'err'), setBusy(false);
-                const fd = new FormData();
-                fd.append('file', file); fd.append('name', name); fd.append('description', desc);
-                const r = await api('/api/sites/upload', { method: 'POST', body: fd });
+                // Extract ZIP on client side, then upload files individually
+                const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+                const zip = await JSZip.loadAsync(file);
+                const prefix = `sites/upload-${Date.now()}`;
+                let uploaded = 0;
+                const entries = Object.entries(zip.files).filter(([path, entry]) =>
+                    !entry.dir && !path.startsWith('__MACOSX') && !path.includes('.DS_Store')
+                );
+                for (const [path, entry] of entries) {
+                    const data = await entry.async('uint8array');
+                    const blob = new Blob([data]);
+                    const f = new File([blob], path.split('/').pop());
+                    const fd = new FormData();
+                    fd.append('file', f);
+                    fd.append('prefix', prefix);
+                    fd.append('path', path);
+                    const r = await api('/api/sites/upload-chunk', { method: 'POST', body: fd });
+                    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+                    uploaded++;
+                    if (uploaded % 10 === 0) toast(`Uploading... ${uploaded}/${entries.length}`, 'inf');
+                }
+                const r = await api('/api/sites/upload-finalize', {
+                    method: 'POST',
+                    body: { name, description: desc, prefix, fileCount: uploaded, githubUrl, techStack },
+                });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error);
-                if (githubUrl || techStack) {
-                    await api(`/api/sites/${d.site.id}`, { method: 'PATCH', body: { github_url: githubUrl, tech_stack: techStack } });
-                }
-                toast('Site created!', 'ok');
+                toast(`Site created with ${uploaded} files!`, 'ok');
             } else if (mode === 'files') {
                 if (!files.length) return toast('Select files or a folder', 'err'), setBusy(false);
                 // Chunked upload: send files one at a time to avoid body size limit
