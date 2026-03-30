@@ -274,7 +274,6 @@ function OverviewTab({ site, versions, deploys, onDeploy, onRefresh, toast }) {
     const [editField, setEditField] = useState(null);
     const [editValue, setEditValue] = useState('');
     const [busy, setBusy] = useState(false);
-    const screenshotRef = useRef(null);
 
     const startEdit = (field, value) => { setEditField(field); setEditValue(value || ''); };
     const cancelEdit = () => { setEditField(null); setEditValue(''); };
@@ -296,22 +295,6 @@ function OverviewTab({ site, versions, deploys, onDeploy, onRefresh, toast }) {
             toast(site.featured ? 'Removed from featured' : 'Added to featured', 'ok');
             onRefresh();
         } catch (e) { toast(e.message, 'err'); }
-    };
-
-    const uploadScreenshot = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        setBusy(true);
-        try {
-            const fd = new FormData();
-            fd.append('screenshot', file);
-            const r = await api(`/api/sites/${site.id}/screenshot`, { method: 'POST', body: fd });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error);
-            toast('Screenshot uploaded!', 'ok');
-            onRefresh();
-        } catch (e2) { toast(e2.message, 'err'); }
-        setBusy(false);
     };
 
     const renderEditable = (field, label, value) => (
@@ -354,24 +337,6 @@ function OverviewTab({ site, versions, deploys, onDeploy, onRefresh, toast }) {
                     {renderEditable('tech_stack', 'Tech Stack', site.tech_stack)}
                     {renderEditable('github_url', 'GitHub URL', site.github_url)}
                     {renderEditable('live_url', 'Live URL', site.live_url)}
-                </div>
-            </div>
-
-            {/* Screenshot */}
-            <div className="cd" style={{ marginBottom: 16 }}>
-                <div className="cd-hd"><h3>Screenshot</h3></div>
-                <div className="cd-bd">
-                    {site.screenshot_url ? (
-                        <div style={{ marginBottom: 12 }}>
-                            <img src={site.screenshot_url} alt="Screenshot" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 'var(--r)', border: '1px solid var(--bdr)' }} />
-                        </div>
-                    ) : (
-                        <p style={{ color: 'var(--fg3)', marginBottom: 12, fontSize: '.875rem' }}>No screenshot uploaded</p>
-                    )}
-                    <input ref={screenshotRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadScreenshot} />
-                    <button className="btn btn-s btn-sm" onClick={() => screenshotRef.current?.click()} disabled={busy}>
-                        {site.screenshot_url ? 'Replace Screenshot' : 'Upload Screenshot'}
-                    </button>
                 </div>
             </div>
 

@@ -14,7 +14,7 @@ export async function GET(request) {
 
     try {
         const r = publicOnly
-            ? await sql`SELECT id,name,slug,description,live_url,github_url,screenshot_url,tech_stack,featured,status,current_version,updated_at FROM sites WHERE status='live' ORDER BY featured DESC, updated_at DESC`
+            ? await sql`SELECT id,name,slug,description,live_url,github_url,tech_stack,featured,status,current_version,updated_at FROM sites WHERE status='live' ORDER BY featured DESC, updated_at DESC`
             : await sql`SELECT * FROM sites ORDER BY updated_at DESC`;
         return NextResponse.json({ sites: r.rows });
     } catch { return NextResponse.json({ error: 'DB error' }, { status: 500 }); }

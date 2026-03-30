@@ -218,11 +218,9 @@ function FeaturedCard({ site }) {
     const stack = (site.tech_stack || '').split(',').map(t => t.trim()).filter(Boolean);
     return (
         <div className="pub-featured-card" onClick={() => site.live_url && window.open(site.live_url, '_blank')}>
-            {site.screenshot_url && (
-                <div className="pub-featured-img">
-                    <img src={site.screenshot_url} alt={site.name} loading="lazy" />
-                </div>
-            )}
+            <div className="pub-featured-img pub-card-img-placeholder">
+                <span>{site.name.charAt(0).toUpperCase()}</span>
+            </div>
             <div className="pub-featured-content">
                 <div className="pub-featured-top">
                     <span className="pub-badge pub-badge-featured">{"\u2B50"} Featured</span>
@@ -253,15 +251,9 @@ function ProjectCard({ site }) {
     const stack = (site.tech_stack || '').split(',').map(t => t.trim()).filter(Boolean);
     return (
         <div className="pub-project-card" onClick={() => site.live_url && window.open(site.live_url, '_blank')}>
-            {site.screenshot_url ? (
-                <div className="pub-card-img">
-                    <img src={site.screenshot_url} alt={site.name} loading="lazy" />
-                </div>
-            ) : (
-                <div className="pub-card-img pub-card-img-placeholder">
-                    <span>{site.name.charAt(0).toUpperCase()}</span>
-                </div>
-            )}
+            <div className="pub-card-img pub-card-img-placeholder">
+                <span>{site.name.charAt(0).toUpperCase()}</span>
+            </div>
             <div className="pub-card-body">
                 <div className="pub-card-top">
                     <StatusBadge status={site.status} />
