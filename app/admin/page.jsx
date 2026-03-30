@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { upload } from '@vercel/blob/client';
 
 // ── API helper ──────────────────────────────────────────────
 function api(path, opts = {}) {
@@ -592,29 +593,20 @@ function UploadModal({ toast, onDone }) {
                 return;
             }
 
-            // Batch upload: send 10 files per request, 5 parallel batches
-            const BATCH = 10;
-            const CONCURRENT = 5;
+            // Direct blob upload: upload files straight to Vercel Blob, bypassing server
+            const CONCURRENT = 10;
             let uploaded = 0;
-            const batches = [];
-            for (let i = 0; i < allFiles.length; i += BATCH) {
-                const batch = allFiles.slice(i, i + BATCH);
-                const fd = new FormData();
-                fd.append('prefix', prefix);
-                for (const { file: f, path } of batch) {
-                    fd.append('files', f);
-                    fd.append('paths', path);
-                }
-                batches.push(fd);
-            }
-            for (let i = 0; i < batches.length; i += CONCURRENT) {
-                const slice = batches.slice(i, i + CONCURRENT);
-                const results = await Promise.all(slice.map(fd => api('/api/sites/upload-chunk', { method: 'POST', body: fd })));
-                for (const r of results) {
-                    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
-                    const d = await r.json();
-                    uploaded += d.uploaded || 0;
-                }
+            const uploadOne = async ({ file: f, path }) => {
+                const blobPath = `portfolio/${prefix}/${path}`;
+                await upload(blobPath, f, {
+                    access: 'public',
+                    handleUploadUrl: '/api/sites/upload-token',
+                });
+                uploaded++;
+            };
+            for (let i = 0; i < allFiles.length; i += CONCURRENT) {
+                const slice = allFiles.slice(i, i + CONCURRENT);
+                await Promise.all(slice.map(uploadOne));
                 toast(`Uploading... ${uploaded}/${allFiles.length}`, 'inf');
             }
 
