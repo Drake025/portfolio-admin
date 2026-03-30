@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
-import { listFiles, uploadFile } from '@/lib/storage';
+import { listFiles, uploadFile, getFile } from '@/lib/storage';
 import { getContentType } from '@/lib/utils';
 import AdmZip from 'adm-zip';
 
@@ -132,10 +132,8 @@ export async function POST(request, { params }) {
             const filePath = rootPrefix ? f.rel.replace(rootPrefix, '') : f.rel;
             if (!filePath) continue;
             try {
-                const resp = await fetch(f.url);
-                if (resp.ok) {
-                    zip.addFile(filePath, Buffer.from(await resp.arrayBuffer()));
-                }
+                const buf = await getFile(f.rel);
+                zip.addFile(filePath, buf);
             } catch (e) {
                 await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${filePath}`);
             }
@@ -151,8 +149,8 @@ export async function POST(request, { params }) {
             }
         }
 
-        // Add Netlify config to fix MIME types
-        zip.addFile('netlify.toml', Buffer.from('[[headers]]\n  for = "/*"\n  [headers.values]\n    Content-Type = "text/html; charset=utf-8"\n\n[[headers]]\n  for = "*.css"\n  [headers.values]\n    Content-Type = "text/css"\n\n[[headers]]\n  for = "*.js"\n  [headers.values]\n    Content-Type = "application/javascript"\n\n[[headers]]\n  for = "*.json"\n  [headers.values]\n    Content-Type = "application/json"\n\n[[headers]]\n  for = "*.png"\n  [headers.values]\n    Content-Type = "image/png"\n\n[[headers]]\n  for = "*.jpg"\n  [headers.values]\n    Content-Type = "image/jpeg"\n\n[[headers]]\n  for = "*.svg"\n  [headers.values]\n    Content-Type = "image/svg+xml"\n'));
+        // Add Netlify config to fix MIME types for HTML files only
+        zip.addFile('netlify.toml', Buffer.from('[[headers]]\n  for = "*.html"\n  [headers.values]\n    Content-Type = "text/html; charset=utf-8"\n'));
         const zipBuf = zip.toBuffer();
 
         if (zipBuf.length < 10) {
@@ -217,9 +215,7 @@ export async function POST(request, { params }) {
                 const rel = f.key.replace(ver.storage_prefix + '/', '');
                 if (!rel || rel.endsWith('/')) return null;
                 try {
-                    const resp = await fetch(f.url);
-                    if (!resp.ok) return null;
-                    const buf = Buffer.from(await resp.arrayBuffer());
+                    const buf = await getFile(f.key);
                     return { file: rel, data: buf.toString('base64'), encoding: 'base64' };
                 } catch { return null; }
             }).filter(Boolean));
