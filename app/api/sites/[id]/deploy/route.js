@@ -113,7 +113,7 @@ export async function POST(request, { params }) {
         const zip = new AdmZip();
         const relPaths = blobs.map(f => {
             const rel = f.key.replace(ver.storage_prefix + '/', '');
-            return { rel, url: f.url };
+            return { rel, fullKey: f.key, url: f.url };
         }).filter(f => f.rel && !f.rel.endsWith('/'));
 
         // Detect if all files share a root folder and strip it
@@ -132,7 +132,7 @@ export async function POST(request, { params }) {
             const filePath = rootPrefix ? f.rel.replace(rootPrefix, '') : f.rel;
             if (!filePath) continue;
             try {
-                const buf = await getFile(f.rel);
+                const buf = await getFile(f.fullKey);
                 zip.addFile(filePath, buf);
             } catch (e) {
                 await addLog(parseInt(id), ver.id, 'deploy', 'warn', `Skipped file: ${filePath}`);
@@ -214,6 +214,11 @@ export async function POST(request, { params }) {
             const files = await Promise.all(blobs.map(async f => {
                 const rel = f.key.replace(ver.storage_prefix + '/', '');
                 if (!rel || rel.endsWith('/')) return null;
+                // Skip large/unnecessary files for Vercel (10MB body limit)
+                const skipExts = ['.png', '.jpg', '.jpeg', '.gif', '.mp4', '.mov', '.zip', '.rar', '.7z', '.pdf', '.psd', '.ai'];
+                const ext = rel.toLowerCase().split('.').pop();
+                if (skipExts.includes('.' + ext)) return null;
+                if (f.size > 500000) return null; // Skip files over 500KB
                 try {
                     const buf = await getFile(f.key);
                     return { file: rel, data: buf.toString('base64'), encoding: 'base64' };
